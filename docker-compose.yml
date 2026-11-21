@@ -1,0 +1,62 @@
+# ECD ML Monitoring — seluruh kebutuhan sistem jalan di Docker.
+#   docker compose up -d --build        -> http://localhost:${WEB_PORT:-8080}
+#   docker compose --profile jupyter up -d   (opsional, notebook riset)
+name: ecd
+
+services:
+  db:
+    image: timescale/timescaledb:2.17.2-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-ecd}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ecd}
+      POSTGRES_DB: ${DB_NAME:-ecd}
+      TZ: UTC
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ecd} -d ${DB_NAME:-ecd}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    build: ./backend
+    image: ecd-backend:${APP_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-ecd}:${DB_PASSWORD:-ecd}@db:5432/${DB_NAME:-ecd}
+    volumes:
+      - appdata:/data                       # uploads, models, reports
+      - ${HOST_INBOX_DIR:-./data/inbox}:/data/inbox   # folder pantau: <inbox>/<nama sumur>/*.las|csv|zip
+
+  frontend:
+    build: ./frontend
+    image: ecd-frontend:${APP_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:80"   # WEB_BIND=127.0.0.1 bila di belakang reverse proxy
+
+  jupyter:
+    profiles: ["jupyter"]
+    image: ecd-backend:${APP_VERSION:-latest}
+    depends_on: [backend]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-ecd}:${DB_PASSWORD:-ecd}@db:5432/${DB_NAME:-ecd}
+    command: sh -c "pip install -q jupyterlab==4.3.4 && jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=${JUPYTER_TOKEN:-ecd}"
+    volumes:
+      - appdata:/data
+      - ./notebooks:/app/notebooks
+    ports:
+      - "8888:8888"
+
+volumes:
+  dbdata:
+  appdata:

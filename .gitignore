@@ -1,0 +1,68 @@
+# =====================================================================
+# Hanya KODE SISTEM yang naik ke GitHub. Data sumur, dokumen klien,
+# rahasia, dan file hasil runtime TIDAK boleh ikut.
+# =====================================================================
+
+# --- rahasia / konfigurasi lokal -------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# --- data sumur (LAS/CSV/zip Navita & rig) ---------------------------
+/data/
+/backups/
+/Model Training ECD/
+/Sumur Uji Berjalan/
+/12.25in section/
+/8.5in Section/
+# file data di mana pun (kecuali potongan uji di backend/tests/fixtures, juga diabaikan di bawah)
+*.las
+*.LAS
+*.zip
+*.dlis
+*.asc
+/*.csv
+# potongan file asli klien untuk test parser — data klien, tidak di-publish
+backend/tests/fixtures/
+
+# --- dokumen klien & referensi pihak ketiga --------------------------
+/docs/klien/
+/docs/referensi/
+*.docx
+*.pptx
+*.xlsx
+*.pdf
+*.jpeg
+*.jpg
+*.png
+!frontend/public/**/*.png
+
+# --- hasil runtime / model / laporan ---------------------------------
+*.joblib
+*.pkl
+/notebooks/**/*.ipynb_checkpoints
+/notebooks/data/
+graphify-out/
+
+# --- build & cache ---------------------------------------------------
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+frontend/node_modules/
+frontend/dist/
+*.log
+
+# --- OS / editor -----------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+.claude/

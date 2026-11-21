@@ -1,0 +1,56 @@
+# ECD Monitor (PaningalSense) — reverse proxy host nginx -> container frontend (127.0.0.1:8095)
+#
+# Alur: browser -> Cloudflare (HTTPS) -> cloudflared tunnel -> nginx host :80 -> 127.0.0.1:8095 (nginx container)
+#       -> /api diteruskan container ke backend FastAPI.
+#
+# Pasang:
+#   sudo cp deploy/nginx/dev-paningalsense.lokatali.my.id /etc/nginx/sites-available/
+#   sudo ln -s /etc/nginx/sites-available/dev-paningalsense.lokatali.my.id /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Port 8095 = WEB_PORT di .env. Biarkan WEB_BIND=127.0.0.1 agar aplikasi hanya bisa diakses lewat nginx ini.
+
+# Batasi percobaan login: 10 per menit per IP (burst 5). Zona didefinisikan di level http (file ini di-include di http {}).
+limit_req_zone $binary_remote_addr zone=paningalsense_login:10m rate=10r/m;
+
+server {
+    listen 80;
+    server_name dev-paningalsense.lokatali.my.id;
+
+    # IP asli pengguna dari Cloudflare (tunnel datang dari localhost)
+    set_real_ip_from 127.0.0.1;
+    set_real_ip_from ::1;
+    real_ip_header CF-Connecting-IP;
+
+    client_max_body_size 1024m;     # upload LAS/zip Navita bisa ratusan MB
+    client_body_timeout 600s;
+    server_tokens off;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    location = /api/auth/login {
+        limit_req zone=paningalsense_login burst=5 nodelay;
+        limit_req_status 429;
+        proxy_pass http://127.0.0.1:8095;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8095;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;   # TLS diterminasi di Cloudflare
+
+        # upload besar & training/laporan yang lama
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+}
