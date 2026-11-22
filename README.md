@@ -36,7 +36,7 @@ Semua komponen berjalan di **Docker**. Server tidak perlu Python, Node, atau Pos
 | **Mode cut-off** | Analisis retrospektif: engine hanya melihat data ≤ waktu T. Hasilnya dibandingkan dengan event terkonfirmasi untuk menghitung *lead time*. |
 | **PPFG berversi** | Rec 03 masuk sebagai *draft*. Margin hanya memakai versi yang sudah **approved**; koreksi dibuat sebagai salinan versi baru. |
 | **Zona rathole & studi kasus** | Zona open hole di bawah shoe (mis. casing di-set lebih awal) per sumur: diarsir di Profil Depth, ditandai di Live Monitor, dan setiap indikasi diberi label zona. Halaman Studi Kasus Rathole membagi analisis jadi dua fase: fase 1 menguji ECD ⓥ terhadap ECD terukur, fase 2 memantau tren hidraulik dan indikasi di zona rathole. |
-| **Laporan** | Harian, event/studi kasus, evaluasi model, QC data, studi kasus rathole. Ekspor Excel/cetak, dengan narasi AI opsional (yang dikirim hanya ringkasan angka). |
+| **Laporan** | Harian, event/studi kasus, evaluasi model, QC data, studi kasus rathole. Ekspor Excel/cetak. Narasi dibuat otomatis: **dibantu AI bila `ANTHROPIC_API_KEY` diisi**, atau dari templat angka laporan (tanpa AI) bila kosong / AI gagal. Ke AI hanya dikirim ringkasan angka. |
 | **Panduan di aplikasi** | Menu Panduan berisi alur kerja, fungsi setiap menu & tombol (beserta peran yang boleh memakainya), langkah "cara melakukan…", dan istilah, plus **kolom pencarian** berbahasa sehari-hari. |
 | **Akses** | Akun lokal dengan peran (Admin, Drilling Eng, RTO, HSE, Geomechanics, Viewer) dan audit log untuk setiap perubahan. |
 
@@ -176,7 +176,7 @@ docker compose up -d --build
 | **6 · Model ML** | Dataset per sumur, mulai training, perbandingan eksperimen, LOWO per sumur, metrik per state/clean-out, feature importance, promotion gate, status model |
 | **A · Analisis Anomali** | Rentang waktu + **cut-off**: deteksi yang terlihat sampai T, data sesudah T (abu-abu), lead time vs event terkonfirmasi |
 | **K · Studi Kasus Rathole** | Untuk sumur yang punya zona rathole. **Fase 1** menguji ECD ⓥ terhadap ECD terukur (MAE, bias, % masuk interval). **Fase 2** menampilkan per hari: jam pompa di rathole, SPP per 100 gpm, torque, ECD ⓥ, dan indikasi per zona. Dilengkapi timeline event, catatan interpretasi, dan tombol *Buat laporan (Excel)* |
-| **R · Laporan** | Buat laporan harian/event/model/QC/studi kasus rathole, unduh Excel, cetak, narasi AI opsional |
+| **R · Laporan** | Buat laporan harian/event/model/QC/studi kasus rathole, unduh Excel, cetak. Narasi otomatis (dibantu AI bila API key diisi) + label sumber narasi |
 | **S · Pengaturan** | User & peran, ganti password, threshold alert & parameter detektor (usul → setujui), audit log, info sistem |
 | **? · Panduan** | Alur kerja, fungsi setiap menu & tombol, cara melakukan sesuatu, istilah, dan pencarian |
 
@@ -358,7 +358,7 @@ Konfigurasi tersebut sudah memuat:
 | `SOURCE_TZ` / `DISPLAY_TZ` | `Asia/Jakarta` | zona waktu kolom waktu file / tampilan |
 | `DOCS_ENABLED` | `true` | dokumentasi API di `/api/docs` (matikan di server publik) |
 | `CORS_ORIGINS` | kosong | isi hanya bila frontend di domain lain |
-| `ANTHROPIC_API_KEY` / `AI_MODEL` | kosong | opsional: narasi laporan AI. Yang dikirim hanya ringkasan angka hasil analisis, bukan data mentah |
+| `ANTHROPIC_API_KEY` / `AI_MODEL` | kosong / `claude-opus-5-5` | **Kosong** → narasi laporan dibuat otomatis tanpa AI (templat dari angka laporan). **Diisi** → narasi dibantu AI; bila AI gagal (key salah, koneksi, limit) kembali ke narasi tanpa AI dan alasannya ditampilkan. Ke AI hanya dikirim ringkasan angka, bukan data mentah. Setelah mengubah: `docker compose up -d` |
 | `APP_VERSION` | `latest` | tag image |
 
 ---

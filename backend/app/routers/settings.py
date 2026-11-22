@@ -93,7 +93,7 @@ def system(_: User = Depends(current_user)):
     s = get_settings()
     return {"resample_s": s.resample_s, "flow_min_gpm": s.flow_min_gpm, "source_tz": s.source_tz,
             "display_tz": s.display_tz, "watch_enabled": s.watch_enabled, "watch_interval_s": s.watch_interval_s,
-            "inbox_dir": s.inbox_dir, "ai_enabled": bool(s.anthropic_api_key), "ai_model": s.ai_model}
+            "inbox_dir": s.inbox_dir, "ai_enabled": bool(s.anthropic_api_key.strip()), "ai_model": s.ai_model}
 
 
 @router.get("/audit/log")

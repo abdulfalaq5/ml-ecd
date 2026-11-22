@@ -85,35 +85,158 @@ SYSTEM = (
 )
 
 
-def ai_narrative(summary: dict) -> str:
-    s = get_settings()
-    if not s.anthropic_api_key:
-        return ""
-    import anthropic
+def ai_enabled() -> bool:
+    """AI dipakai hanya bila ANTHROPIC_API_KEY diisi di .env."""
+    return bool(get_settings().anthropic_api_key.strip())
 
-    slim = {k: v for k, v in summary.items() if k not in ("files",)}
-    client = anthropic.Anthropic(api_key=s.anthropic_api_key)
+
+def ai_narrative(summary: dict) -> tuple[str | None, str | None]:
+    """(teks, None) bila sukses; (None, alasan) bila AI tidak tersedia / gagal."""
+    s = get_settings()
+    if not ai_enabled():
+        return None, "API key AI belum diisi"
     try:
-        resp = client.beta.messages.create(
+        import anthropic
+    except ImportError:
+        return None, "library anthropic tidak terpasang"
+
+    slim = {k: v for k, v in summary.items() if k not in ("files", "narrative_source", "narrative_note")}
+    client = anthropic.Anthropic(api_key=s.anthropic_api_key.strip())
+    try:
+        resp = client.messages.create(
             model=s.ai_model,
-            max_tokens=16000,
+            max_tokens=4000,
             system=SYSTEM,
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-            output_config={"effort": "low"},
             messages=[{"role": "user", "content": "Data ringkasan (JSON):\n" + json.dumps(slim, ensure_ascii=False, default=str)}],
         )
+    except anthropic.AuthenticationError:
+        return None, "API key AI ditolak (cek ANTHROPIC_API_KEY)"
     except anthropic.APIConnectionError:
         log.exception("AI: koneksi gagal")
-        return "(narasi AI tidak tersedia: koneksi gagal)"
+        return None, "koneksi ke layanan AI gagal"
     except anthropic.RateLimitError:
-        return "(narasi AI tidak tersedia: rate limit, coba lagi nanti)"
+        return None, "batas pemakaian AI tercapai, coba lagi nanti"
     except anthropic.APIStatusError as e:
         log.exception("AI: error API")
-        return f"(narasi AI tidak tersedia: {e.status_code})"
+        return None, f"layanan AI error {e.status_code}"
     if resp.stop_reason == "refusal":
-        return "(narasi AI ditolak oleh model; tulis manual)"
-    return "\n".join(b.text for b in resp.content if b.type == "text").strip()
+        return None, "AI menolak membuat narasi"
+    text = "\n".join(b.text for b in resp.content if b.type == "text").strip()
+    return (text, None) if text else (None, "AI tidak mengembalikan teks")
+
+
+# ---------------- narasi otomatis tanpa AI (templat dari angka ringkasan) ----------------
+
+def _wib(iso) -> str:
+    if not iso:
+        return "—"
+    return pd.Timestamp(iso).tz_convert(get_settings().display_tz).strftime("%d %b %Y %H:%M")
+
+
+def _n(v, d=2) -> str:
+    return "—" if v is None else f"{float(v):.{d}f}"
+
+
+def _top(items: list, key: str, k: int = 3) -> str:
+    cnt: dict = {}
+    for x in items or []:
+        cnt[x.get(key)] = cnt.get(x.get(key), 0) + 1
+    return ", ".join(f"{a} ({b})" for a, b in sorted(cnt.items(), key=lambda t: -t[1])[:k])
+
+
+def template_narrative(s: dict) -> str:
+    kind, well = s.get("kind"), s.get("well") or "—"
+    per = s.get("period") or [None, None]
+    lines: list[str] = []
+    if kind in ("daily", "event"):
+        if s.get("ecd_mean") is None and not s.get("detections"):
+            return f"Tidak ada data untuk sumur {well} pada periode yang dipilih."
+        lines.append(f"Sumur {well}, periode " + (f"{_wib(per[0])} – {_wib(per[1])} WIB " if per[0] and per[1] else "default (data terakhir) ") +
+                     f"({s.get('data_minutes', 0)} menit data). ECD {s.get('ecd_source', '—')} rata-rata {_n(s.get('ecd_mean'))} ppg, "
+                     f"maksimum {_n(s.get('ecd_max'))} ppg.")
+        if s.get("margin_up_min") is not None or s.get("margin_low_min") is not None:
+            lines.append(f"Margin atas minimum {_n(s.get('margin_up_min'))} ppg dan margin bawah minimum {_n(s.get('margin_low_min'))} ppg ({s.get('ppfg')}).")
+        else:
+            lines.append(f"Margin terhadap FG/batas bawah belum dihitung ({s.get('ppfg') or 'PPFG belum approved'}).")
+        lv = {k: v for k, v in (s.get("level_minutes") or {}).items() if k != "NORMAL" and v}
+        if lv:
+            lines.append("Waktu pada level di atas NORMAL: " + ", ".join(f"{k} {v} mnt" for k, v in lv.items()) + ".")
+        det = s.get("detections") or []
+        if det:
+            lines.append(f"Terdeteksi {len(det)} indikasi; terbanyak: {_top(det, 'label')}.")
+        else:
+            lines.append("Tidak ada indikasi anomali terdeteksi pada data yang tersedia.")
+        ev = s.get("events") or []
+        if ev:
+            lines.append(f"Event tercatat pada periode ini: {len(ev)} ({_top(ev, 'category')}).")
+        lines.append(f"Model: {s.get('model') or 'belum ada model aktif'}.")
+        lines.append("Perlu diverifikasi engineer: setiap indikasi di atas terhadap kondisi rig (returns, cuttings, pit, laporan lumpur) sebelum disimpulkan.")
+    elif kind == "model":
+        m = s.get("model")
+        if not m:
+            return "Belum ada model untuk dievaluasi."
+        met = m.get("metrics") or {}
+        ex = met.get("experiments") or {}
+        ch = met.get("chosen")
+        lines.append(f"Model {m.get('name')} (status {m.get('status')}), dilatih pada {', '.join(m.get('train_wells') or []) or '—'}; "
+                     f"sumur blind: {', '.join(m.get('blind_wells') or []) or '—'}. Algoritma terpilih: {ch or '—'} (dipilih dari {met.get('selection', 'LOWO')}).")
+        base, best = ex.get("mw_only") or {}, ex.get(ch) or {}
+        if best:
+            lines.append(f"MAE LOWO {_n((best.get('lowo') or {}).get('mae'), 3)} ppg vs baseline MW-only {_n((base.get('lowo') or {}).get('mae'), 3)} ppg; "
+                         f"MAE blind {_n((best.get('blind') or {}).get('mae'), 3)} ppg vs MW-only {_n((base.get('blind') or {}).get('mae'), 3)} ppg.")
+            bw = best.get("blind_per_well") or {}
+            if bw:
+                lines.append("Per sumur blind: " + "; ".join(f"{w} MAE {_n(v.get('mae'), 3)} (bias {_n(v.get('bias'), 3)})" for w, v in bw.items()) + ".")
+        g = m.get("gates") or {}
+        lines.append(f"Promotion gate terpenuhi {sum(bool(v) for v in g.values())}/6.")
+        lines.append("Perlu diverifikasi engineer: akurasi per operating state (terutama clean-out) dan sumur blind sebelum promosi.")
+    elif kind == "qc":
+        f = s.get("files") or []
+        bad = [x for x in f if any((q or {}).get("level") in ("warn", "error", "critical") for q in (x.get("qc") or []))]
+        lines.append(f"{len(f)} file ter-ingest{' untuk sumur ' + well if s.get('well') else ''}, {len(bad)} file dengan peringatan QC (level warn/error).")
+        if bad:
+            lines.append("Contoh file dengan temuan: " + "; ".join(x.get("file", "") for x in bad[:5]) + ".")
+        lines.append("Perlu diverifikasi: temuan QC sebelum QC sign-off.")
+    elif kind == "rathole":
+        if s.get("message"):
+            return s["message"]
+        rh, p1, p2 = s.get("rathole") or {}, s.get("phase1") or {}, s.get("phase2") or {}
+        lines.append(f"Sumur {well} (section {s.get('well_section') or '—'}): zona rathole {_n(rh.get('top_md'), 0)}–{_n(rh.get('base_md'), 0)} ftMD "
+                     f"({_n(rh.get('length_ft'), 0)} ft open hole) berlaku sejak {_wib(rh.get('since'))} WIB.")
+        if p1:
+            ir = p1.get("in_rathole_depth") or {}
+            lines.append(f"Fase 1 ({_wib(p1.get('t0'))} – {_wib(p1.get('t1'))}, ECD terukur tersedia): ECD ⓥ vs terukur MAE {_n(p1.get('mae'), 3)} ppg, "
+                         f"bias {_n(p1.get('bias'), 3)} ppg, {_n(p1.get('coverage_pct'), 0)}% titik di dalam interval (n={p1.get('n')}). "
+                         + (f"Saat bit di kedalaman rathole: MAE {_n(ir.get('mae'), 3)}, bias {_n(ir.get('bias'), 3)}, ECD−MW {_n(ir.get('ecd_minus_mw_med'))} ppg." if ir else ""))
+        if p2:
+            d = [x for x in (s.get("phase2_daily") or []) if x.get("spp_per_100gpm") and (x.get("pump_minutes") or 0) >= 240]  # hari dengan pompa ≥ 4 jam saja
+            lines.append(f"Fase 2 (sejak {_wib(p2.get('t0'))}): pompa hidup {_n((p2.get('pump_minutes') or 0) / 60, 1)} jam, "
+                         f"{_n((p2.get('rathole_pump_minutes') or 0) / 60, 1)} jam di zona rathole; ECD ⓥ median {_n(p2.get('ecd_pred_med'))} ppg (maks {_n(p2.get('ecd_pred_max'))}).")
+            if len(d) >= 2:
+                lines.append(f"SPP per 100 gpm berubah dari {_n(d[0]['spp_per_100gpm'], 0)} ({d[0]['date']}) ke {_n(d[-1]['spp_per_100gpm'], 0)} psi ({d[-1]['date']}).")
+        zt = s.get("zone_table") or []
+        if zt:
+            tot_r, tot_a = sum(z.get("rathole", 0) for z in zt), sum(z.get("atas_shoe", 0) for z in zt)
+            top = sorted(zt, key=lambda z: -z.get("rathole", 0))[:3]
+            lines.append(f"Indikasi fase 2: {tot_r} di zona rathole vs {tot_a} di atas shoe; terbanyak di rathole: "
+                         + ", ".join(f"{z['label']} ({z['rathole']})" for z in top) + ".")
+        for c in (s.get("caveats") or [])[:3]:
+            lines.append("Catatan: " + c)
+        lines.append("Perlu diverifikasi engineer: kecocokan indikasi dengan laporan harian (DDR) dan kondisi lubang aktual.")
+    else:
+        return ""
+    return "\n".join(lines)
+
+
+def narrate(summary: dict, use_ai: bool = True) -> tuple[str, str, str | None]:
+    """Narasi laporan → (teks, sumber 'ai' | 'template', catatan).
+    API key kosong (atau use_ai=False) → templat tanpa AI. API key diisi → AI; bila AI gagal, kembali ke templat."""
+    if use_ai and ai_enabled():
+        text, err = ai_narrative(summary)
+        if text:
+            return text, "ai", None
+        return template_narrative(summary), "template", f"AI gagal ({err}); memakai narasi otomatis tanpa AI"
+    return template_narrative(summary), "template", None if use_ai else "AI dimatikan untuk laporan ini"
 
 
 def to_excel(summary: dict, frame: pd.DataFrame | None) -> bytes:

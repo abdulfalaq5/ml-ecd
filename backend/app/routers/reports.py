@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import Report, User, Well
-from ..reports.report import KINDS, ai_narrative, build_summary, to_excel
+from ..reports.report import KINDS, build_summary, narrate, to_excel
 from ..security import audit, current_user, require
 from .monitor import _t
 
@@ -35,7 +35,7 @@ class ReportIn(BaseModel):
     well_id: int | None = None
     t0: str | None = None
     t1: str | None = None
-    ai: bool = False
+    ai: bool = True  # dipakai hanya bila API key AI diisi; False = paksa tanpa AI
     title: str | None = None
 
 
@@ -57,12 +57,13 @@ def create(body: ReportIn, db: Session = Depends(get_db), u: User = Depends(requ
         raise HTTPException(400, "Pilih sumur")
     t0, t1 = _t(body.t0), _t(body.t1)
     summary, _ = build_summary(db, body.kind, w, t0, t1)
-    narrative = ai_narrative(summary) if body.ai else ""
+    narrative, src, note = narrate(summary, body.ai)
+    summary = {**summary, "narrative_source": src, "narrative_note": note}
     r = Report(kind=body.kind, well_id=w.id if w else None,
                title=body.title or f"{KINDS[body.kind]}{' — ' + w.name if w else ''}",
                period_start=t0, period_end=t1, summary=summary, narrative=narrative, created_by=u.username)
     db.add(r)
-    audit(db, u.username, "report_create", f"{body.kind} well={w.name if w else '-'} ai={body.ai}")
+    audit(db, u.username, "report_create", f"{body.kind} well={w.name if w else '-'} narasi={src}")
     db.commit()
     return rout(r, True)
 
@@ -85,8 +86,12 @@ def narrative(rid: int, body: NarrIn, db: Session = Depends(get_db), u: User = D
     r = db.get(Report, rid)
     if not r:
         raise HTTPException(404, "Laporan tidak ada")
-    r.narrative = ai_narrative(r.summary) if body.ai else (body.narrative or "")
-    audit(db, u.username, "report_narrative", f"#{r.id} ai={body.ai}")
+    if body.ai:  # "Buat ulang narasi": AI bila API key diisi, selain itu templat tanpa AI
+        r.narrative, src, note = narrate(r.summary)
+    else:
+        r.narrative, src, note = body.narrative or "", "manual", None
+    r.summary = {**(r.summary or {}), "narrative_source": src, "narrative_note": note}  # dict baru → JSON ter-update
+    audit(db, u.username, "report_narrative", f"#{r.id} narasi={src}")
     db.commit()
     return rout(r, True)
 

@@ -8,7 +8,8 @@ export default function Laporan() {
   const { wells, wellId, can } = useApp();
   const list = useFetch<any>(() => api.get("/reports"), []);
   const sys = useFetch<any>(() => api.get("/settings/system/info"), []);
-  const [f, setF] = useState<any>({ kind: "daily", well_id: wellId, t0: "", t1: "", ai: false });
+  const [f, setF] = useState<any>({ kind: "daily", well_id: wellId, t0: "", t1: "", ai: true });
+  const aiOn = !!sys.data?.ai_enabled;
   const [sel, setSel] = useState<any | null>(null);
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
   const [narr, setNarr] = useState("");
@@ -34,9 +35,13 @@ export default function Laporan() {
               <label className="f">Dari (WIB)<input type="datetime-local" value={f.t0} onChange={(e) => setF({ ...f, t0: e.target.value })} /></label>
               <label className="f">Sampai (WIB)<input type="datetime-local" value={f.t1} onChange={(e) => setF({ ...f, t1: e.target.value })} /></label>
             </div>
-            <label className="row small" style={{ margin: "8px 0" }}><input type="checkbox" checked={f.ai} disabled={!sys.data?.ai_enabled} onChange={(e) => setF({ ...f, ai: e.target.checked })} />Narasi otomatis (AI){!sys.data?.ai_enabled && <span className="muted"> — set ANTHROPIC_API_KEY di .env untuk mengaktifkan</span>}</label>
+            {aiOn ? (
+              <label className="row small" style={{ margin: "8px 0" }}><input type="checkbox" checked={f.ai} onChange={(e) => setF({ ...f, ai: e.target.checked })} />Narasi dibantu AI <span className="muted">({sys.data?.ai_model})</span>{!f.ai && <span className="muted"> — dimatikan: narasi otomatis tanpa AI</span>}</label>
+            ) : (
+              <div className="small muted" style={{ margin: "8px 0" }}><NarrBadge src="template" /> Narasi dibuat otomatis <b>tanpa AI</b> dari angka laporan. Isi <span className="mono">ANTHROPIC_API_KEY</span> di <span className="mono">.env</span> agar narasi dibantu AI.</div>
+            )}
             <button className="pri" disabled={busy || !can("report")} onClick={create}>{busy ? "Memproses…" : "Buat laporan"}</button>
-            <p className="note">Kosongkan periode = 1 jam terakhir data. Narasi AI hanya menerima ringkasan angka (bukan data mentah); wajib direview engineer.</p>
+            <p className="note">Kosongkan periode = 1 jam terakhir data. Narasi selalu dibuat otomatis: dengan AI bila API key diisi (AI hanya menerima ringkasan angka, bukan data mentah), tanpa AI bila tidak. Narasi wajib direview engineer.</p>
           </div>
           <div className="card">
             <h3>Arsip</h3>
@@ -93,15 +98,26 @@ export default function Laporan() {
               <table><thead><tr><th>File</th><th>Rec</th><th>Baris</th><th>Temuan</th></tr></thead>
                 <tbody>{(s.files || []).map((x: any, i: number) => <tr key={i}><td className="small">{x.file}</td><td>{x.record} {x.basis}</td><td className="mono">{x.rows}</td><td className="small">{(x.qc || []).filter((q: any) => q.level !== "ok").map((q: any) => q.title).join("; ") || "ok"}</td></tr>)}</tbody></table>
             )}
-            <h3 style={{ marginTop: 14 }}>Narasi</h3>
-            <textarea value={narr} onChange={(e) => setNarr(e.target.value)} placeholder="Tulis ringkasan / kesimpulan engineer…" style={{ minHeight: 140 }} />
+            <div className="row" style={{ marginTop: 14 }}><h3 style={{ margin: 0 }}>Narasi</h3><NarrBadge src={s.narrative_source} /></div>
+            {s.narrative_note && <div className="note" style={{ margin: "6px 0" }}>{s.narrative_note}</div>}
+            <textarea value={narr} onChange={(e) => setNarr(e.target.value)} placeholder="Tulis ringkasan / kesimpulan engineer…" style={{ minHeight: 140, height: Math.min(420, 60 + 22 * (narr || "").split("\n").reduce((a: number, l: string) => a + Math.ceil((l.length || 1) / 110), 0)) }} />
             <div className="row" style={{ marginTop: 6 }}>
               <button onClick={() => saveNarr(false)} disabled={busy}>Simpan narasi</button>
-              {sys.data?.ai_enabled && <button onClick={() => saveNarr(true)} disabled={busy}>Buat ulang dengan AI</button>}
+              <button onClick={() => saveNarr(true)} disabled={busy} title={aiOn ? "Narasi baru dibuat AI dari ringkasan angka" : "Narasi baru dibuat otomatis tanpa AI"}>{busy ? "Memproses…" : aiOn ? "Buat ulang narasi (AI)" : "Buat ulang narasi otomatis"}</button>
             </div>
           </div>
         ) : <div className="card empty">Pilih laporan dari arsip atau buat baru.</div>}
       </div>
     </>
   );
+}
+
+/** Sumber narasi laporan: AI / otomatis tanpa AI / ditulis manual. */
+function NarrBadge({ src }: { src?: string }) {
+  if (!src) return null;
+  const m: Record<string, [string, string, string]> = {
+    ai: ["Dibantu AI", "#F1ECFB", "#5B34B0"], template: ["Otomatis tanpa AI", "#EEF1F5", "#3A4552"], manual: ["Ditulis manual", "#E8F5EE", "#146C3E"],
+  };
+  const [l, bg, c] = m[src] || [src, "#EEF1F5", "#3A4552"];
+  return <span className="lvl" style={{ background: bg, color: c, border: `1px solid ${c}33` }}>{l}</span>;
 }
