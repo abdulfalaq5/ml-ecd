@@ -77,6 +77,21 @@ Urutan kerja setelah gate Fase 0:
 
 ---
 
+### 0.0 Retraining 22 Nov 2026 (data `data/Model Training ECD`, data lama dihapus; backup `backups/20261122_073117`)
+- Re-import 10 sumur dari folder (read-only). `MANGGA 0004` = ACS26 (header `ACS-26/MANGGA-04`); **BDSI 60 = sumur BEKA-256 di rig BDSI-60**, sumur blind tetap. GW339 & PDSI 53.2 (studi kasus) dipertahankan. BEKA: hanya LAS (CSV template = data sama).
+- Model `ecd v1` RF (id 5, candidate), dipilih dari LOWO. Train berlabel: ACS26, BDSI 18/19/21/61. Blind: BDSI 60 + GW339.
+
+| Model | MAE LOWO | Blind GW339 | Blind BDSI 60 |
+|---|---|---|---|
+| MW-only (a+b·MW) | 0.289 | 0.429 | 0.588 |
+| **RF (dipakai)** | **0.236** | **0.337** | **0.538** |
+| XGB | 0.345 | 0.317 | 0.586 |
+| LGBM | 0.269 | 0.308 | 0.535 |
+
+- BDSI 60: ΔECD (ECD−MW) terukur hanya +0.12 ppg (sumur training ±0.6) → semua model over-predict ±0.5 ppg; 19 Nov ECD median < MW (−0.24) → **tanya klien** (MW Rec 04 vs MW aktual / kalibrasi tool).
+- Cakupan interval 90% di sumur blind baru 69% (GW339) & 31% (BDSI 60) → interval dari residual LOWO terlalu sempit untuk sumur baru; perlu lebih banyak sumur berlabel sebelum shadow.
+- Masih tanpa prediksi (UNAVAILABLE): BEKA-253/254/255 (belum ada Rec 04 MW; BEKA-254 punya 19 rb titik ECD yang belum terpakai), GW336 (file time kosong).
+
 ## 1. Roadmap Bergerbang [PHR Bab 10] — ringkas
 
 | Fase | Aktivitas | Gate | Deliverables [PHR 10.1] | Waktu (usulan) |
