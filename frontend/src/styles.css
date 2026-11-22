@@ -88,3 +88,25 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #BFD5F2; outline-
 .pw .pw-eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 36px; height: 34px; padding: 0; border: none; background: none; color: var(--muted); display: flex; align-items: center; justify-content: center; border-radius: 6px; }
 .pw .pw-eye:hover { color: var(--text); background: var(--hover); }
 .pw .pw-eye:focus-visible { outline: 2px solid #BFD5F2; }
+
+/* ---- Panduan ---- */
+.guide-search { padding: 16px 18px; }
+.guide-input { display: flex; align-items: center; gap: 8px; margin-top: 6px; border: 1px solid var(--border2); border-radius: 10px; padding: 0 10px; background: #fff; color: var(--muted); }
+.guide-input:focus-within { border-color: var(--accent); outline: 2px solid #BFD5F2; }
+.guide-input input { flex: 1; border: none; outline: none; padding: 12px 4px; font-size: 15px; background: transparent; }
+.guide-input input:focus { outline: none; }
+.guide-clear { border: none; background: none; font-size: 20px; line-height: 1; padding: 4px 8px; color: var(--muted); }
+button.chip.guide-sug { padding: 3px 10px; border-radius: 999px; font-size: 12px; background: var(--panel2); }
+button.chip.guide-sug:hover { background: var(--active); color: var(--accent2); border-color: #BFD5F2; }
+a.chip.guide-go { color: var(--accent2); background: var(--active); border-color: #BFD5F2; text-decoration: none; }
+mark { background: #FFE8B3; color: inherit; border-radius: 3px; padding: 0 1px; }
+.guide-menu > summary { cursor: pointer; list-style: none; }
+.guide-menu > summary::-webkit-details-marker { display: none; }
+.guide-menu > summary::before { content: "▸"; display: inline-block; width: 16px; color: var(--muted); transition: transform .15s; }
+.guide-menu[open] > summary::before { transform: rotate(90deg); }
+.guide-steps { margin: 0; padding-left: 22px; } .guide-steps li { margin: 3px 0; }
+.guide-kind { font-size: 10px; } .k-Cara { background: #E4EEFA; color: #174C8E; } .k-Tombol { background: #FDF0E1; color: #8A4B00; }
+.k-Menu { background: #E8F5EE; color: #146C3E; } .k-Istilah { background: #F1ECFB; color: #5B34B0; } .k-Alur { background: #EEF1F5; color: #3A4552; }
+.guide-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.guide-step { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel2); }
+.guide-num { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--ecd); color: #fff; font: 600 13px var(--mono); display: flex; align-items: center; justify-content: center; }

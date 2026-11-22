@@ -35,7 +35,9 @@ Semua komponen berjalan di **Docker**. Server tidak perlu Python, Node, atau Pos
 | **Detektor anomali** | Pack-off (SPP naik di flow sama), torque spike/stall, overpull, tag/set-down, lonjakan ECD ⓥ, residual ECD, loss, influx, pipa diam lama (differential), MW statis < batas bawah. Semua baseline memakai data masa lalu saja (tanpa *look-ahead*). |
 | **Mode cut-off** | Analisis retrospektif: engine hanya melihat data ≤ waktu T. Hasilnya dibandingkan dengan event terkonfirmasi untuk menghitung *lead time*. |
 | **PPFG berversi** | Rec 03 masuk sebagai *draft*. Margin hanya memakai versi yang sudah **approved**; koreksi dibuat sebagai salinan versi baru. |
-| **Laporan** | Harian, event/studi kasus, evaluasi model, QC data. Ekspor Excel/cetak, dengan narasi AI opsional (yang dikirim hanya ringkasan angka). |
+| **Zona rathole & studi kasus** | Zona open hole di bawah shoe (mis. casing di-set lebih awal) per sumur: diarsir di Profil Depth, ditandai di Live Monitor, dan setiap indikasi diberi label zona. Halaman Studi Kasus Rathole membagi analisis jadi dua fase: fase 1 menguji ECD ⓥ terhadap ECD terukur, fase 2 memantau tren hidraulik dan indikasi di zona rathole. |
+| **Laporan** | Harian, event/studi kasus, evaluasi model, QC data, studi kasus rathole. Ekspor Excel/cetak, dengan narasi AI opsional (yang dikirim hanya ringkasan angka). |
+| **Panduan di aplikasi** | Menu Panduan berisi alur kerja, fungsi setiap menu & tombol (beserta peran yang boleh memakainya), langkah "cara melakukan…", dan istilah, plus **kolom pencarian** berbahasa sehari-hari. |
 | **Akses** | Akun lokal dengan peran (Admin, Drilling Eng, RTO, HSE, Geomechanics, Viewer) dan audit log untuk setiap perubahan. |
 
 ---
@@ -54,7 +56,7 @@ Semua komponen berjalan di **Docker**. Server tidak perlu Python, Node, atau Pos
 |---|---|---|
 | `db` | `timescale/timescaledb:2.17.2-pg16` | data time-series (hypertable), depth, PPFG, MW, survey, model, event, user, audit |
 | `backend` | build `./backend` (Python 3.12, FastAPI, scikit-learn, XGBoost, LightGBM) | API, ingest, watcher folder, training, inferensi, detektor, laporan |
-| `frontend` | build `./frontend` (React + Vite + ECharts, disajikan nginx) | 11 halaman UI; meneruskan `/api` ke backend |
+| `frontend` | build `./frontend` (React + Vite + ECharts, disajikan nginx) | 13 halaman UI (tema terang); meneruskan `/api` ke backend |
 | `jupyter` | opsional (`--profile jupyter`) | notebook riset |
 
 Data disimpan dalam **UTC**. Kolom waktu di file (`dtsrv`) dibaca sebagai **WIB** (`SOURCE_TZ`), dan tampilan juga dalam WIB.
@@ -159,20 +161,24 @@ docker compose up -d --build
 
 ## 5. Cara menggunakan
 
+> **Bingung cara melakukan sesuatu?** Buka menu **? · Panduan** lalu ketik pertanyaannya, misalnya "cek hasil training", "upload file besar", atau "menu A tombol jalankan" (lihat [5.4](#54-menu-panduan-bantuan-di-aplikasi)).
+
 ### 5.1 Halaman
 
 | Menu | Kegunaan |
 |---|---|
-| **Overview** | Kartu semua sumur aktif: level alert, ECD, margin, state, sparkline (refresh 60 dtk) |
+| **0 · Overview** | Kartu semua sumur aktif: level alert, ECD, margin, state, sparkline (refresh 60 dtk) |
 | **1 · Live Monitor** | Track multi-kanal (horizontal / log format), ECD terukur vs ECD ⓥ + interval, FG & batas bawah, pressure window, alert terbaru + Ack. Mode realtime / picker waktu |
-| **2 · Profil Depth** | ECD, PPFG, MW, dan survey terhadap kedalaman |
+| **2 · Profil Depth** | ECD, PPFG, MW, dan survey terhadap kedalaman, posisi shoe, dan arsir zona rathole |
 | **3 · Riwayat Event** | Label event (stuck, pack-off, loss, …) dengan alur review Draft → Dikonfirmasi |
-| **4 · Data & Upload** | Tambah sumur, upload file, hasil QC per file, kelengkapan record, edit sumur (section, shoe MD, peran), QC sign-off |
+| **4 · Data & Upload** | Tambah sumur, upload file, hasil QC per file, kelengkapan record, edit sumur (section, shoe MD, peran, zona rathole), QC sign-off |
 | **5 · Formasi & FG** | Versi PPFG (Rec 03): lihat, koreksi (salinan), **approve** oleh Geomechanics; aturan MW |
 | **6 · Model ML** | Dataset per sumur, mulai training, perbandingan eksperimen, LOWO per sumur, metrik per state/clean-out, feature importance, promotion gate, status model |
 | **A · Analisis Anomali** | Rentang waktu + **cut-off**: deteksi yang terlihat sampai T, data sesudah T (abu-abu), lead time vs event terkonfirmasi |
-| **R · Laporan** | Buat laporan harian/event/model/QC, unduh Excel, cetak, narasi AI opsional |
+| **K · Studi Kasus Rathole** | Untuk sumur yang punya zona rathole. **Fase 1** menguji ECD ⓥ terhadap ECD terukur (MAE, bias, % masuk interval). **Fase 2** menampilkan per hari: jam pompa di rathole, SPP per 100 gpm, torque, ECD ⓥ, dan indikasi per zona. Dilengkapi timeline event, catatan interpretasi, dan tombol *Buat laporan (Excel)* |
+| **R · Laporan** | Buat laporan harian/event/model/QC/studi kasus rathole, unduh Excel, cetak, narasi AI opsional |
 | **S · Pengaturan** | User & peran, ganti password, threshold alert & parameter detektor (usul → setujui), audit log, info sistem |
+| **? · Panduan** | Alur kerja, fungsi setiap menu & tombol, cara melakukan sesuatu, istilah, dan pencarian |
 
 ### 5.2 Langkah kerja umum
 
@@ -186,12 +192,12 @@ docker compose up -d --build
      docker compose exec backend python -m app.cli scan   # scan folder pantau sekarang
      ```
    File yang sama (hash identik) tidak diproses dua kali. Rec 08 dan file kosong dilewati dengan keterangan.
-2. **Lengkapi sumur** (Data & Upload → Edit sumur): section, **shoe MD**, dan **peran** (`train` / `blind` / `case` / `shadow`). Periksa hasil QC, lalu QC sign-off.
+2. **Lengkapi sumur** (Data & Upload → Edit sumur): section, **shoe MD**, dan **peran** (`train` / `blind` / `case` / `shadow`). Bila ada open hole di bawah shoe, isi juga **zona rathole** (top MD, base MD, berlaku sejak). Periksa hasil QC, lalu QC sign-off.
 3. **Approve PPFG** (Formasi & FG). Tanpa PPFG approved dan shoe MD, margin tidak dihitung.
 4. **Training** (Model ML → Mulai training). Pilih "Semua (A–D)": model terbaik dipilih dari LOWO dan dilaporkan pada sumur blind. Model baru berstatus `candidate` dan langsung dipakai untuk ECD ⓥ bila belum ada model shadow/production.
 5. **Promosi model**: centang promotion gate. Shadow → Production butuh 6/6, dan engineering review oleh Drilling Eng.
 6. **Monitoring**: pantau di Live Monitor/Overview, Ack alert, dan label event di Riwayat Event.
-7. **Studi kasus / cut-off**: di Analisis Anomali, pilih rentang dan waktu cut-off untuk melihat indikasi apa yang sudah terlihat sebelum kejadian.
+7. **Studi kasus / cut-off**: di Analisis Anomali, pilih rentang dan waktu cut-off untuk melihat indikasi apa yang sudah terlihat sebelum kejadian. Untuk masalah rathole, buka **Studi Kasus Rathole**.
 8. **Laporan**: buat di menu Laporan, unduh Excel.
 
 ### 5.3 Catatan data
@@ -204,6 +210,25 @@ docker compose up -d --build
   dengan nama file mengandung `record_04`, misalnya `MW_manual_record_04.csv`.
 - ECD = 0 di file berarti tidak ada sensor, dan disimpan sebagai kosong.
 - Export LAS rig (tab) menulis nilai 0 sebagai `-999.25`. Parser mengisi 0 untuk kanal operasional (flow, RPM, WOB, …).
+
+### 5.4 Menu Panduan (bantuan di aplikasi)
+
+Menu **? · Panduan** (paling bawah di menu kiri) punya empat tab:
+
+| Tab | Isi |
+|---|---|
+| **Alur kerja** | Langkah bernomor untuk alur utama (file data → laporan), alur harian RTO/Drilling Eng, dan alur Data/ML (data baru → model baru). Tiap langkah punya tautan ke menunya |
+| **Menu & tombol** | Untuk setiap menu: fungsinya, kapan dipakai, dan tabel semua tombol/kontrol beserta fungsinya dan **peran yang boleh memakainya** |
+| **Cara melakukan…** | Panduan langkah demi langkah, mis. cara training, cek hasil training, upload file besar, approve PPFG, konfirmasi event, analisis cut-off, isi zona rathole, ganti password, backup |
+| **Istilah** | ECD ⓥ, LOWO, sumur blind, MAE, OOD, interval prediksi, promotion gate, rathole, dll. |
+
+**Pencarian** (kolom di atas tab):
+- Bisa memakai bahasa sehari-hari, dan sinonim umum dikenali. Contoh: "gimana cara latih ulang model" tetap menemukan *Cara melakukan training model*.
+- Mengenali kode menu dan kata "tombol". Contoh: "menu A tombol jalankan" menampilkan tombol **Jalankan** di Analisis Anomali paling atas, dan "menu K" menampilkan isi menu Studi Kasus Rathole.
+- Kata yang cocok di-*highlight*, dan setiap hasil punya tautan **Buka menu →**.
+- Pencarian tersimpan di alamat halaman (`/panduan?q=...`), jadi bisa dibagikan ke rekan.
+
+Isi panduan ada di satu file, [`frontend/src/lib/guide.ts`](frontend/src/lib/guide.ts). Bila menambah menu atau tombol baru, tambahkan juga deskripsinya di file ini supaya ikut tampil dan bisa dicari. Daftar peran di file itu mengikuti `PERM` di `backend/app/security.py`.
 
 ---
 
@@ -358,6 +383,7 @@ docker compose exec backend pytest -q      # test otomatis
 | Margin kosong | PPFG belum di-approve atau shoe MD belum diisi |
 | ECD ⓥ kosong / UNAVAILABLE | MW (Rec 04) belum ada, atau belum ada model; cek Model ML |
 | Alert UNAVAILABLE di sumur shadow | data terakhir > 10 menit (normal untuk data offline) |
+| Halaman Studi Kasus Rathole kosong | zona rathole sumur belum diisi → Data & Upload → Edit sumur |
 | Training gagal "tidak ada sumur training dengan label" | set peran `train` pada sumur yang punya Rec 02 ECD + Rec 04 MW |
 
 ---
@@ -367,13 +393,15 @@ docker compose exec backend pytest -q      # test otomatis
 ```
 backend/                 FastAPI + ML
   app/ingest/            parser LAS/CSV, mapping kanal (mnemonics.yaml), QC, watcher
-  app/core/              data loader, operating state & fitur, margin, alert, analisis
+  app/core/              data loader, operating state & fitur, margin, alert, analisis, studi kasus rathole
   app/ml/pipeline.py     dataset, training A–D, LOWO/blind, inferensi
   app/anomaly/           detektor anomali
   app/reports/           laporan + narasi AI
   app/routers/           endpoint API
   tests/                 pytest (test parser memakai fixture data klien yang tidak di-commit → otomatis dilewati)
 frontend/                React + Vite + ECharts, disajikan nginx
+  src/pages/             satu file per menu (Panduan.tsx = menu Panduan)
+  src/lib/guide.ts       isi menu Panduan (alur, menu & tombol, cara, istilah)
 scripts/                 backup.sh, restore.sh
 deploy/nginx/            contoh reverse proxy untuk domain
 docs/                    SETUP, desain sistem, data dictionary (CHANNELS), mockup UI, TODO/roadmap
