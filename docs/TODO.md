@@ -85,6 +85,8 @@ Urutan kerja setelah gate Fase 0:
 - [x] Bending: inti dipindah ke `backend/app/core/bending.py` (+ 9 test), katalog `backend/app/bending_catalog.json` (nominal API; DC 8-1/4" untuk 12-1/4", DC 7" untuk 8-1/2" sesuai klien) + preset per section, runs per sumur "mulai hole depth X" (seperti MW Rec 04). Script `tools/bending` memakai modul yang sama.
 - [x] Rencana integrasi ke aplikasi: `docs/BENDING_INTEGRATION.md` (tabel, API, UI, hak akses).
 - [ ] Tanya klien: Navita bisa ekspor otomatis terjadwal / WITSML? Navita bisa import channel LAS (untuk menampilkan ECD ⓥ & bending di Navita)?
+- [ ] **Peran user (ditunda, menunggu klien):** sementara hanya akun `admin`. Opsi yang ditawarkan: (1) dua peran Admin + User (user: lihat, analisa, ack alert, laporan, event Draft; tidak bisa ubah data/PPFG/model/threshold/akun), (2) jalan tengah (Admin + User tampil, 9 peran proposal tetap ada), (3) tetap 9 peran sesuai proposal Bab 10. Catatan: dua peran menyimpang dari persetujuan berlapis proposal (PPFG oleh Geomech, threshold oleh Drilling Eng + HSE).
+- [ ] **Section per sumur (dari klien):** bit size + kedalaman dari–sampai / casing shoe (mis. BDSI 61: 17-1/2", 12-1/4", 8-1/2"). Belum ada di DB untuk sumur mana pun. Uji LOWO BDSI 61: MAE 0,33–0,58 ppg di 0–2.000 ft vs 0,16–0,19 ppg di 2.000–6.000 ft. Rencana: hole size / celah annulus jadi input model + metrik per section di Model ML; entri sama dengan "String & Lubang" (bending).
 - [ ] Konfirmasi katalog dari klien (ukuran DP/HWDP/DC rig, jumlah DC/HWDP per section, casing/liner + connection, datasheet batas bending sambungan) → lalu bangun tabel/API/UI sesuai `docs/BENDING_INTEGRATION.md` §8.
 
 ### 0.0000 Estimasi bending moment (permintaan klien 22 Nov 2026) — script v1, belum masuk aplikasi
