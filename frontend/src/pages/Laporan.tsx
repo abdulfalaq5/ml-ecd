@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import { useApp, useFetch } from "../lib/ctx";
-import { n, wib } from "../lib/fmt";
+import { ft, n, wib } from "../lib/fmt";
 import { Err, Kpi, Level } from "../components/ui";
 
 export default function Laporan() {
@@ -70,6 +70,20 @@ export default function Laporan() {
                 <tbody>{(s.detections || []).map((d: any, i: number) => <tr key={i}><td className="mono">{wib(d.start, true)}</td><td><Level v={d.level} /></td><td>{d.label}</td><td className="mono">{d.md ? Math.round(d.md) : "—"}</td></tr>)}</tbody></table>
               {s.events?.length > 0 && (<><h3 style={{ marginTop: 12 }}>Event tercatat</h3>
                 <table><tbody>{s.events.map((e: any, i: number) => <tr key={i}><td className="mono">{wib(e.onset, true)}</td><td>{e.category}</td><td>{e.review}</td></tr>)}</tbody></table></>)}
+            </>)}
+            {sel.kind === "rathole" && (<>
+              {s.message && <div className="note">{s.message}</div>}
+              {s.rathole && <div className="small" style={{ marginBottom: 8 }}>Zona rathole <b>{ft(s.rathole.top_md)}–{ft(s.rathole.base_md)} ft</b> ({n(s.rathole.length_ft, 0)} ft) sejak {wib(s.rathole.since, true)} · section {s.well_section || "—"} · model {s.model?.name || "—"} ({s.model?.well_role_in_model})</div>}
+              {s.phase1 && <div className="kpis">
+                <Kpi l="Fase 1 · MAE ECD ⓥ vs terukur" v={n(s.phase1.mae, 3)} s={`bias ${n(s.phase1.bias, 3)} · n=${s.phase1.n}`} />
+                <Kpi l="Fase 1 · di kedalaman rathole" v={n(s.phase1.in_rathole_depth?.mae, 3)} s={`bias ${n(s.phase1.in_rathole_depth?.bias, 3)}`} />
+                <Kpi l="Fase 2 · jam pompa di rathole" v={n((s.phase2?.rathole_pump_minutes || 0) / 60, 1)} s={`dari ${n((s.phase2?.pump_minutes || 0) / 60, 1)} jam pompa`} />
+                <Kpi l="Fase 2 · ECD ⓥ median" v={n(s.phase2?.ecd_pred_med)} s={`maks ${n(s.phase2?.ecd_pred_max)} ppg`} color="#E8710A" />
+              </div>}
+              {s.zone_table?.length > 0 && <table><thead><tr><th>Indikasi (fase 2)</th><th>Rathole</th><th>Atas shoe</th><th>Bawah rathole</th></tr></thead>
+                <tbody>{s.zone_table.map((z: any) => <tr key={z.label}><td>{z.label}</td><td className="mono"><b>{z.rathole}</b></td><td className="mono">{z.atas_shoe}</td><td className="mono">{z.bawah_rathole}</td></tr>)}</tbody></table>}
+              {s.caveats?.length > 0 && <><h3 style={{ marginTop: 12 }}>Catatan</h3><ul className="small">{s.caveats.map((c: string, i: number) => <li key={i}>{c}</li>)}</ul></>}
+              <div className="small muted">Detail harian fase 1 &amp; 2 ada di file Excel dan di halaman Studi Kasus Rathole.</div>
             </>)}
             {sel.kind === "model" && s.model && (
               <div className="small"><b>{s.model.name}</b> ({s.model.status}) · train {s.model.train_wells?.join(", ")} · blind {s.model.blind_wells?.join(", ") || "—"}

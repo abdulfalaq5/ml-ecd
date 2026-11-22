@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { api } from "../lib/api";
 import { useApp, useFetch } from "../lib/ctx";
-import { C, ft, n } from "../lib/fmt";
+import { C, RATHOLE, ft, n } from "../lib/fmt";
 import { AX, EChart, Err, TIP, WellSelect } from "../components/ui";
 
 export default function ProfilDepth() {
@@ -17,6 +17,7 @@ export default function ProfilDepth() {
     }
     if (data.mw?.md) series.push({ ...line("MW", data.mw.mw, data.mw.md, C.mw, false, 2), step: "end" });
     if (data.ecd_measured?.md) series.push({ type: "scatter", name: "ECD terukur", data: data.ecd_measured.md.map((m: number, i: number) => [data.ecd_measured.ecd[i], m]), symbolSize: 3, itemStyle: { color: C.ecd } });
+    if (data.rathole) series.push({ type: "line", name: "Zona rathole", data: [], itemStyle: { color: RATHOLE }, markArea: { silent: true, itemStyle: { color: RATHOLE + "33", borderColor: RATHOLE, borderType: "dashed", borderWidth: 1 }, label: { show: true, position: "insideTopRight", color: "#8A4B00", fontSize: 11, formatter: `rathole ${ft(data.rathole.top_md)}–${ft(data.rathole.base_md)} ft` }, data: [[{ yAxis: data.rathole.top_md }, { yAxis: data.rathole.base_md }]] } });
     if (data.shoe_md) series.push({ type: "line", name: "Shoe", data: [], markLine: { symbol: "none", data: [{ yAxis: data.shoe_md }], lineStyle: { color: "#5B6775", type: "dotted" }, label: { formatter: `shoe ${ft(data.shoe_md)} ft`, color: "#5B6775" } } });
     return {
       backgroundColor: "transparent", animation: false, legend: { textStyle: { color: "#3A4552" }, top: 0 },

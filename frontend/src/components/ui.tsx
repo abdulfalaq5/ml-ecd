@@ -2,12 +2,12 @@ import { useEffect, useRef, type ReactNode } from "react";
 import * as echarts from "echarts";
 import { NavLink } from "react-router-dom";
 import { useApp } from "../lib/ctx";
-import { LEVEL_COLOR } from "../lib/fmt";
+import { LEVEL_COLOR, RATHOLE, ZONE_LABEL } from "../lib/fmt";
 import { RigIcon } from "./DrillingScene";
 
 const CORE = [["1", "Live Monitor", "/monitor"], ["2", "Profil Depth", "/profil"], ["3", "Riwayat Event", "/event"],
   ["4", "Data & Upload", "/data"], ["5", "Formasi & FG", "/formasi"], ["6", "Model ML", "/model"]];
-const SUP = [["0", "Overview", "/"], ["A", "Analisis Anomali", "/anomali"], ["R", "Laporan", "/laporan"], ["S", "Pengaturan", "/pengaturan"]];
+const SUP = [["0", "Overview", "/"], ["A", "Analisis Anomali", "/anomali"], ["K", "Studi Kasus Rathole", "/rathole"], ["R", "Laporan", "/laporan"], ["S", "Pengaturan", "/pengaturan"]];
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useApp();
@@ -41,6 +41,13 @@ export function Layout({ children }: { children: ReactNode }) {
 export function Level({ v, big }: { v?: string | null; big?: boolean }) {
   const c = LEVEL_COLOR[v || "UNAVAILABLE"] || "#7A8694";
   return <span className="lvl" style={{ background: c + "22", color: c, border: `1px solid ${c}55`, fontSize: big ? 16 : undefined, padding: big ? "4px 12px" : undefined }}>{v || "UNAVAILABLE"}</span>;
+}
+
+/** Penanda zona kedalaman sebuah indikasi (hanya muncul bila sumur punya zona rathole). */
+export function ZoneTag({ z }: { z?: string | null }) {
+  if (!z) return null;
+  const hot = z === "rathole";
+  return <span className="lvl" style={{ background: hot ? RATHOLE + "22" : "#EEF1F5", color: hot ? "#8A4B00" : "#5B6775", border: `1px solid ${hot ? RATHOLE + "66" : "#D5DCE4"}` }}>{ZONE_LABEL[z] || z}</span>;
 }
 
 export function WellSelect({ label = "Room" }: { label?: string }) {

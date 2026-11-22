@@ -77,6 +77,13 @@ Urutan kerja setelah gate Fase 0:
 
 ---
 
+### 0.00 Studi Kasus Rathole GW339 (usulan klien 22 Nov 2026) — DONE v1
+- Sumber: DDR GW-339 #38 (11 Nov) & #39 (12 Nov Rev 1). Casing 7" di-set lebih awal di 5354 ftMD (tag 5330–5351 saat RIH), TD 8-1/2" 5651 → rathole ±297 ft; CIP 12 Nov 19:30 WIB. 6 event dari DDR dicatat (status Draft → perlu dikonfirmasi Drilling Eng).
+- Fitur: field `rathole` per sumur (Data & Upload → Edit sumur), tanda zona di setiap indikasi (Live Monitor / Analisis Anomali), arsir rathole di Profil Depth, halaman **K · Studi Kasus Rathole** (fase 1 validasi ECD ⓥ vs APWD, fase 2 tren harian di zona rathole), jenis laporan `rathole` (Excel 6 sheet).
+- Hasil awal: fase 1 (GW339 blind) MAE 0.337 ppg, bias −0.16; di kedalaman rathole bias −0.44 (ECD−MW naik ke ±1.1 ppg). Fase 2: SPP/100 gpm 391→498→550→743 (17–20 Nov), 16/17 torque spike & 27/47 pack-off di zona rathole; ECD ⓥ datar ±10.95 → model belum menangkap efek lubang 6-1/8"/restriksi.
+- Perlu dari klien: DDR 13–20 Nov, MW aktual (DDR 10.4 vs Rec 04 10.3), approval PPFG GW339, data run 6-1/8" ber-PWD sumur lain (agar ukuran lubang bisa jadi fitur model).
+- Backlog: parser otomatis PDF DDR (time log → event), fitur ukuran lubang di model.
+
 ### 0.0 Retraining 22 Nov 2026 (data `data/Model Training ECD`, data lama dihapus; backup `backups/20261122_073117`)
 - Re-import 10 sumur dari folder (read-only). `MANGGA 0004` = ACS26 (header `ACS-26/MANGGA-04`); **BDSI 60 = sumur BEKA-256 di rig BDSI-60**, sumur blind tetap. GW339 & PDSI 53.2 (studi kasus) dipertahankan. BEKA: hanya LAS (CSV template = data sama).
 - Model `ecd v1` RF (id 5, candidate), dipilih dari LOWO. Train berlabel: ACS26, BDSI 18/19/21/61. Blind: BDSI 60 + GW339.

@@ -15,6 +15,7 @@ import ModelML from "./pages/ModelML";
 import AnalisisAnomali from "./pages/AnalisisAnomali";
 import Laporan from "./pages/Laporan";
 import Pengaturan from "./pages/Pengaturan";
+import StudiRathole from "./pages/StudiRathole";
 
 function Guard() {
   const { user } = useApp();
@@ -31,6 +32,7 @@ function Guard() {
         <Route path="/model" element={<ModelML />} />
         <Route path="/anomali" element={<AnalisisAnomali />} />
         <Route path="/laporan" element={<Laporan />} />
+        <Route path="/rathole" element={<StudiRathole />} />
         <Route path="/pengaturan" element={<Pengaturan />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -9,9 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..core.analysis import compute, f, series
+from ..core.analysis import compute, f, rathole_zone, series
 from ..core.data import active_ppfg, load_depth_profile, load_mw, load_survey
 from ..core.features import STATES
+from ..core.rathole import analyze as rathole_analyze
 from ..core.margins import lower_bound, open_hole_extremes
 from ..db import get_db
 from ..models import Event, User, Well
@@ -78,11 +79,12 @@ def monitor(wid: int, t0: str | None = None, t1: str | None = None, minutes: int
         "margin_static": f(last.get("margin_static")), "level": last.get("level"), "reason": last.get("reason"),
         "low_conf": bool(last.get("low_conf")), "ood": bool(last.get("ood")), "risk": f(last.get("risk")),
         "interval_half": f((last.get("ecd_hi") - last.get("ecd_lo")) / 2) if pd.notna(last.get("ecd_hi")) else None,
+        "zone": rathole_zone(w, f(last.get("bit_depth"), 0), df.index[-1]),
     }
     if fresh > 10 and w.role == "shadow":
         snap["level"] = "UNAVAILABLE"
         snap["reason"] = f"data terakhir {fresh:.0f} mnt lalu"
-    meta = {"well": w.name, "section": w.section, "shoe_md": w.shoe_md, "fresh_min": f(fresh, 0),
+    meta = {"well": w.name, "section": w.section, "shoe_md": w.shoe_md, "rathole": w.rathole, "fresh_min": f(fresh, 0),
             "data_start": r["data_start"].isoformat(), "data_end": r["data_end"].isoformat(),
             "t0": r["t0"].isoformat(), "t1": r["t1"].isoformat(), "bucket_s": r["bucket_s"],
             "model": _model_out(r["model"]), "valid_features": valid_feats, "total_features": 12, "missing": missing,
@@ -173,9 +175,15 @@ def profile(wid: int, ppfg_version: int | None = None, db: Session = Depends(get
                          "flag": "MW < batas bawah" if low_m is not None and low_m < 0 else "dalam window"})
     bad = [r for r in rows if r["low_margin"] is not None and r["low_margin"] < 0]
     last_hole = None
-    return {"well": w.name, "shoe_md": w.shoe_md,
+    return {"well": w.name, "shoe_md": w.shoe_md, "rathole": w.rathole,
             "ppfg": {"id": ver.id, "version": ver.version, "status": ver.status, "approved_by": ver.approved_by} if ver else None,
             "pp": out_pp, "mw": {"md": [f(x, 1) for x in mwt.md], "mw": [f(x) for x in mwt.mw]} if len(mwt) else {},
             "survey": {"md": [f(x, 1) for x in sv.md], "tvd": [f(x, 1) for x in sv.tvd]} if len(sv) else {},
             "ecd_measured": {"md": [f(x, 1) for x in ecd_m.md], "ecd": [f(x) for x in ecd_m.ecd]} if len(ecd_m) else {},
             "intervals": rows, "mw_below": bad, "hole_depth": last_hole}
+
+
+@router.get("/{wid}/rathole")
+def rathole(wid: int, db: Session = Depends(get_db), _: User = Depends(current_user)):
+    """Studi kasus rathole (H1–H3): fase 1 validasi ECD ⓥ vs ECD terukur, fase 2 zona rathole tanpa ECD terukur."""
+    return rathole_analyze(db, _well(db, wid))

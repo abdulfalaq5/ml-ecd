@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useApp, useFetch } from "../lib/ctx";
-import { ago, C, ft, n, STATE_LABEL, wib, toLocalInput } from "../lib/fmt";
-import { EChart, Err, Kpi, Level, WellSelect } from "../components/ui";
+import { ago, C, ft, n, RATHOLE, STATE_LABEL, wib, toLocalInput } from "../lib/fmt";
+import { EChart, Err, Kpi, Level, WellSelect, ZoneTag } from "../components/ui";
 import { buildTracks, CHANNELS, PRESETS } from "../components/tracks";
 
 const WINDOWS = [["30 mnt", 30], ["1 jam", 60], ["3 jam", 180], ["6 jam", 360], ["12 jam", 720]] as const;
@@ -59,6 +59,8 @@ export default function LiveMonitor() {
             <span className="chip" style={{ color: meta.missing.length ? "#E07A10" : undefined }}>Fitur valid: {meta.valid_features}/{meta.total_features}{meta.missing.length ? ` · ${meta.missing.join(", ")} ⚠` : ""}</span>
             <span className="chip" style={{ color: meta.ppfg ? undefined : "#E07A10" }}>PPFG: {meta.ppfg ? `Rec 03 v${meta.ppfg.version} · ${meta.ppfg.status}${meta.ppfg.approved_by ? " " + meta.ppfg.approved_by : ""}` : "belum ada approved"}</span>
             <span className="chip">MW: Rec 04 · effective-from hole depth</span>
+            {meta.rathole && <Link to="/rathole" className="chip" style={{ color: sn.zone === "rathole" ? "#8A4B00" : undefined, borderColor: sn.zone === "rathole" ? RATHOLE : undefined, background: sn.zone === "rathole" ? RATHOLE + "1A" : undefined }}>
+              {sn.zone === "rathole" ? "⚠ Bit di zona rathole" : "Zona rathole"} {ft(meta.rathole.top_md)}–{ft(meta.rathole.base_md)} ft</Link>}
             {sn.low_conf && <span className="chip" style={{ color: "#B98900" }}>Low confidence{sn.ood ? " · di luar rentang training" : ""}</span>}
           </div>
           <div className="kpis">
@@ -106,7 +108,7 @@ export default function LiveMonitor() {
                 const k = d.detector + d.start;
                 return (
                   <div key={i} style={{ borderTop: "1px solid #E3E8EE", padding: "8px 0", opacity: ack[k] ? 0.5 : 1 }}>
-                    <div className="row"><Level v={d.level} /><span className="small mono">{wib(d.start)}</span><span className="sp" /><button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => setAck({ ...ack, [k]: true })}>Ack</button></div>
+                    <div className="row"><Level v={d.level} /><ZoneTag z={d.zone} /><span className="small mono">{wib(d.start)}</span><span className="sp" /><button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => setAck({ ...ack, [k]: true })}>Ack</button></div>
                     <div className="small" style={{ marginTop: 4 }}>{d.label}{d.md ? ` @${ft(d.md)} ft` : ""}</div>
                     {d.rec && <div className="muted small">Rekomendasi verifikasi: {d.rec}</div>}
                   </div>

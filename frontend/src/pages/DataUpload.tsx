@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useApp, useFetch } from "../lib/ctx";
-import { dateOnly, ft, n, wib } from "../lib/fmt";
+import { dateOnly, ft, n, wib , toLocalInput } from "../lib/fmt";
 import { Err, Kpi, WellSelect } from "../components/ui";
 
 const SEG: Record<string, [string, string]> = {
@@ -46,9 +46,9 @@ export default function DataUpload() {
       {well && (
         <div className="card" style={{ marginBottom: 12 }}>
           <div className="row">
-            <b>{well.name}</b><span className="chip">peran: {well.role}</span><span className="chip">section {well.section || "—"}</span><span className="chip">shoe {ft(well.shoe_md)} ft</span>
+            <b>{well.name}</b><span className="chip">peran: {well.role}</span><span className="chip">section {well.section || "—"}</span><span className="chip">shoe {ft(well.shoe_md)} ft</span>{well.rathole && <span className="chip" style={{ color: "#8A4B00" }}>rathole {ft(well.rathole.top_md)}–{ft(well.rathole.base_md)} ft</span>}
             {well.aliases?.length > 0 && <span className="muted small">alias WID: {well.aliases.join(", ")}</span>}
-            <span className="sp" />{can("well_edit") && <button onClick={() => setEdit({ name: well.name, field: well.field, section: well.section, shoe_md: well.shoe_md, role: well.role, status: well.status, notes: well.notes })}>Edit sumur</button>}
+            <span className="sp" />{can("well_edit") && <button onClick={() => setEdit({ name: well.name, field: well.field, section: well.section, shoe_md: well.shoe_md, role: well.role, status: well.status, notes: well.notes, rathole: well.rathole ? { ...well.rathole } : null })}>Edit sumur</button>}
           </div>
           {edit && (
             <div className="row" style={{ marginTop: 10 }}>
@@ -57,6 +57,13 @@ export default function DataUpload() {
               <label className="f">Peran<select value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })}>{["train", "blind", "case", "shadow"].map((r) => <option key={r}>{r}</option>)}</select></label>
               <label className="f">Status<select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })}>{["active", "archived"].map((r) => <option key={r}>{r}</option>)}</select></label>
               <label className="f" style={{ flex: 1 }}>Catatan<input value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} /></label>
+              <div style={{ flexBasis: "100%" }} />
+              <span className="small muted" style={{ flexBasis: "100%" }}>Zona rathole (opsional): open hole di bawah shoe yang tidak ter-cover casing, mis. casing di-set lebih awal. Kosongkan top MD untuk menonaktifkan.</span>
+              <label className="f">Rathole top MD (ft)<input type="number" value={edit.rathole?.top_md ?? ""} placeholder="= shoe" onChange={(e) => setEdit({ ...edit, rathole: { ...(edit.rathole || {}), top_md: e.target.value === "" ? null : Number(e.target.value) } })} /></label>
+              <label className="f">Rathole base MD (ft)<input type="number" value={edit.rathole?.base_md ?? ""} placeholder="TD section lama" onChange={(e) => setEdit({ ...edit, rathole: { ...(edit.rathole || {}), base_md: e.target.value === "" ? null : Number(e.target.value) } })} /></label>
+              <label className="f">Berlaku sejak (WIB)<input type="datetime-local" value={toLocalInput(edit.rathole?.since)} onChange={(e) => setEdit({ ...edit, rathole: { ...(edit.rathole || {}), since: e.target.value ? e.target.value + ":00+07:00" : null } })} /></label>
+              <label className="f" style={{ flex: 1 }}>Keterangan rathole<input value={edit.rathole?.note ?? ""} onChange={(e) => setEdit({ ...edit, rathole: { ...(edit.rathole || {}), note: e.target.value } })} placeholder="mis. casing di-set lebih awal, sumber DDR" /></label>
+              <div style={{ flexBasis: "100%" }} />
               <button className="pri" onClick={saveWell}>Simpan</button><button onClick={() => setEdit(null)}>Batal</button>
             </div>
           )}

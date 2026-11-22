@@ -53,7 +53,7 @@ def create(body: ReportIn, db: Session = Depends(get_db), u: User = Depends(requ
     if body.kind not in KINDS:
         raise HTTPException(400, "Jenis laporan tidak dikenal")
     w = _well(db, body.well_id)
-    if body.kind in ("daily", "event") and not w:
+    if body.kind in ("daily", "event", "rathole") and not w:
         raise HTTPException(400, "Pilih sumur")
     t0, t1 = _t(body.t0), _t(body.t1)
     summary, _ = build_summary(db, body.kind, w, t0, t1)

@@ -50,6 +50,18 @@ def thin(df: pd.DataFrame, bucket_s: int) -> pd.DataFrame:
     return df.iloc[pick]
 
 
+def rathole_zone(well: Well, md, ts) -> str | None:
+    """'rathole' | 'atas_shoe' | 'bawah_rathole' untuk titik setelah zona rathole berlaku; None bila tidak relevan."""
+    r = well.rathole
+    if not r or md is None or ts is None or (isinstance(md, float) and np.isnan(md)):
+        return None
+    if r.get("since") and pd.Timestamp(ts) < pd.Timestamp(r["since"]):
+        return None
+    if md < r["top_md"]:
+        return "atas_shoe"
+    return "rathole" if md <= r["base_md"] else "bawah_rathole"
+
+
 def compute(db: Session, well: Well, t0: datetime | None = None, t1: datetime | None = None,
             points: int = 1500, cutoff: datetime | None = None, model: MLModel | None = None,
             ppfg_version: int | None = None, minutes: int | None = None) -> dict:
@@ -75,6 +87,8 @@ def compute(db: Session, well: Well, t0: datetime | None = None, t1: datetime | 
     bucket = pick_bucket(t0, t1, points)
     view = thin(full, bucket) if bucket > cb and len(full) > points else full
     dets = [d for d in det["detections"] if pd.Timestamp(d["end"]) >= t0]
+    for d in dets:
+        d["zone"] = rathole_zone(well, d.get("md"), d.get("start"))
     return {"empty": False, "df": view, "df_full": full, "calc_bucket_s": cb, "detections": dets, "model": rec,
             "ppfg": ver, "ppfg_rows": ppfg, "bucket_s": max(bucket, cb) if view is not full else cb,
             "t0": t0, "t1": t1, "data_start": lo, "data_end": hi, "cutoff": cutoff}

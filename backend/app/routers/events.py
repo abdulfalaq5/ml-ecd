@@ -13,9 +13,9 @@ from ..security import audit, current_user, require
 router = APIRouter(prefix="/api/events", tags=["events"])
 
 CATEGORIES = ["Loss", "Influx", "Pack-off / poor hole cleaning", "Tight hole / sloughing", "Differential sticking",
-              "Mechanical sticking", "Stuck", "Noise sensor", "Lainnya"]
+              "Mechanical sticking", "Stuck", "Operasi (casing / cementing)", "Noise sensor", "Lainnya"]
 REVIEW = ["Draft", "Menunggu review", "Dikonfirmasi", "Ditolak"]
-LEVELS = ["ADVISORY", "WARNING", "CRITICAL", "STUCK", "NOISE"]
+LEVELS = ["INFO", "ADVISORY", "WARNING", "CRITICAL", "STUCK", "NOISE"]
 
 
 def out(e: Event, wells: dict) -> dict:

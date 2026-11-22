@@ -16,7 +16,8 @@ from ..models import Event, IngestFile, MLModel, Well
 
 log = logging.getLogger("report")
 KINDS = {"daily": "Laporan Harian ECD", "event": "Laporan Event / Studi Kasus",
-         "model": "Laporan Evaluasi Model", "qc": "Laporan QC Data"}
+         "model": "Laporan Evaluasi Model", "qc": "Laporan QC Data",
+         "rathole": "Studi Kasus Rathole (H1–H3)"}
 
 
 def build_summary(db: Session, kind: str, well: Well | None, t0: datetime | None, t1: datetime | None) -> tuple[dict, pd.DataFrame | None]:
@@ -50,6 +51,18 @@ def build_summary(db: Session, kind: str, well: Well | None, t0: datetime | None
             evq = evq.where(Event.onset <= t1)
         s["events"] = [{"onset": e.onset.isoformat(), "level": e.level, "category": e.category,
                         "review": e.review_status, "md": e.md} for e in db.scalars(evq.order_by(Event.onset))]
+    elif kind == "rathole" and well:
+        from ..core.rathole import analyze
+        a = analyze(db, well)
+        p1, p2 = a.get("phase1") or {}, a.get("phase2") or {}
+        s.update({
+            "well_section": a.get("section"), "shoe_md": a.get("shoe_md"), "rathole": a.get("rathole"),
+            "model": a.get("model"), "message": a.get("message"),
+            "phase1": {k: v for k, v in p1.items() if k not in ("series", "daily")} or None,
+            "phase2": {k: v for k, v in p2.items() if k not in ("series", "daily", "detections")} or None,
+            "phase1_daily": p1.get("daily"), "phase2_daily": p2.get("daily"),
+            "zone_table": a.get("zone_table"), "events": a.get("events"), "caveats": a.get("caveats"),
+        })
     elif kind == "model":
         m = db.scalar(select(MLModel).where(MLModel.status.in_(["production", "shadow", "candidate"])).order_by(MLModel.id.desc()))
         if m:
@@ -113,6 +126,11 @@ def to_excel(summary: dict, frame: pd.DataFrame | None) -> bytes:
             pd.DataFrame(summary["detections"]).to_excel(xw, "Deteksi", index=False)
         if summary.get("events"):
             pd.DataFrame(summary["events"]).to_excel(xw, "Event", index=False)
+        for key, sheet in (("phase1_daily", "Fase 1 harian (ECD terukur)"), ("phase2_daily", "Fase 2 harian (rathole)"),
+                           ("zone_table", "Indikasi per zona"), ("caveats", "Catatan")):
+            if summary.get(key):
+                v = summary[key]
+                (pd.DataFrame(v) if isinstance(v[0], dict) else pd.DataFrame({"catatan": v})).to_excel(xw, sheet[:31], index=False)
         if frame is not None and len(frame):
             cols = [c for c in ["state", "bit_depth", "hole_depth", "flow_in", "spp", "rpm", "torque", "hookload",
                                 "mw", "ecd", "ecd_pred", "ecd_lo", "ecd_hi", "fg_bit", "lower_bit",

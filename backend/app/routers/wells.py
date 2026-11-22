@@ -26,7 +26,7 @@ def well_out(db: Session, w: Well) -> dict:
     r = (t0, last, n_ecd)
     fresh = (datetime.now(timezone.utc) - last).total_seconds() / 60 if last else None
     return {"id": w.id, "name": w.name, "field": w.field, "aliases": w.aliases or [], "section": w.section,
-            "shoe_md": w.shoe_md, "role": w.role, "status": w.status, "notes": w.notes,
+            "shoe_md": w.shoe_md, "role": w.role, "status": w.status, "notes": w.notes, "rathole": w.rathole,
             "data_start": r[0].isoformat() if r[0] else None, "data_end": last.isoformat() if last else None,
             "fresh_min": f(fresh, 0), "ecd_points": int(r[2] or 0)}
 
@@ -44,6 +44,7 @@ class WellIn(BaseModel):
     role: str = "train"
     status: str = "active"
     notes: str = ""
+    rathole: dict | None = None
 
 
 @router.post("/wells")
@@ -61,9 +62,30 @@ def update_well(wid: int, body: WellIn, db: Session = Depends(get_db), u: User =
     w = db.get(Well, wid) or _404()
     for k in ("field", "section", "shoe_md", "role", "status", "notes"):
         setattr(w, k, getattr(body, k))
-    audit(db, u.username, "well_update", f"{w.name}: shoe={w.shoe_md} role={w.role}")
+    if "rathole" in body.model_fields_set:  # hanya diubah bila dikirim
+        w.rathole = clean_rathole(body.rathole)
+    audit(db, u.username, "well_update", f"{w.name}: shoe={w.shoe_md} role={w.role} rathole={w.rathole}")
     db.commit()
     return well_out(db, w)
+
+
+def clean_rathole(r: dict | None) -> dict | None:
+    """Validasi zona rathole. Kosong / top tidak diisi -> None (fitur rathole nonaktif)."""
+    if not r or r.get("top_md") in (None, ""):
+        return None
+    try:
+        top, base = float(r["top_md"]), float(r["base_md"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "Rathole: isi top MD dan base MD (angka, ft)")
+    if not 0 <= top < base:
+        raise HTTPException(400, "Rathole: top MD harus lebih dangkal dari base MD")
+    since = r.get("since") or None
+    if since:
+        try:
+            datetime.fromisoformat(str(since).replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(400, "Rathole: format waktu 'sejak' tidak valid")
+    return {"top_md": top, "base_md": base, "since": since, "note": str(r.get("note") or "")[:500]}
 
 
 def _404():

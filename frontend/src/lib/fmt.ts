@@ -29,7 +29,11 @@ export function ago(min?: number | null) {
   return `${Math.round(min / 1440)} hari lalu`;
 }
 
+/** warna zona rathole (open hole di bawah shoe yang tidak ter-cover casing) */
+export const RATHOLE = "#C77700";
+export const ZONE_LABEL: Record<string, string> = { rathole: "Rathole", atas_shoe: "Atas shoe", bawah_rathole: "Bawah rathole" };
 export const LEVEL_COLOR: Record<string, string> = {
+  INFO: "#2F6FD1",
   NORMAL: "#1E9E5A", ADVISORY: "#B98900", WARNING: "#E07A10", CRITICAL: "#D63A40", UNAVAILABLE: "#7A8694",
   STUCK: "#D63A40", NOISE: "#7A8694",
 };

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useApp, useFetch } from "../lib/ctx";
 import { ft, n, toLocalInput, wib } from "../lib/fmt";
-import { EChart, Err, Level, WellSelect } from "../components/ui";
+import { EChart, Err, Level, WellSelect, ZoneTag } from "../components/ui";
 import { buildTracks, CHANNELS, type Track } from "../components/tracks";
 
 const TRACKS: Track[] = [
@@ -71,7 +71,7 @@ export default function AnalisisAnomali() {
               <div style={{ maxHeight: 300, overflow: "auto" }}>
                 {data.detections.map((d: any, i: number) => (
                   <div key={i} className="small" style={{ borderTop: "1px solid #E3E8EE", padding: "6px 0" }}>
-                    <div className="row"><Level v={d.level} /><span className="mono">{wib(d.start)}</span><span className="muted">{d.state}</span></div>
+                    <div className="row"><Level v={d.level} /><ZoneTag z={d.zone} /><span className="mono">{wib(d.start)}</span><span className="muted">{d.state}</span></div>
                     <div>{d.label}{d.md ? ` @${ft(d.md)} ft` : ""}</div>{d.rec && <div className="muted">Verifikasi: {d.rec}</div>}
                   </div>
                 ))}
