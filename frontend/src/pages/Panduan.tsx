@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { FLOWS, HOWTOS, MENUS, TERMS, type HowTo, type MenuGuide } from "../lib/guide";
+import { FLOWS, HOWTOS, LIMITS, LIVE_REQS, MENUS, TERMS, type HowTo, type Limit, type MenuGuide, type Req } from "../lib/guide";
 
 /* ---------- pencarian ---------- */
 const STOP = new Set(["cara", "bagaimana", "gimana", "untuk", "yang", "di", "ke", "dan", "atau", "apa", "saya", "mau", "ingin", "pingin",
@@ -24,7 +24,7 @@ const SYN: Record<string, string[]> = {
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ⓥ.\- ]+/g, " ");
 const tokens = (q: string) => norm(q).split(/\s+/).filter((w) => w.length > 1 && !STOP.has(w));
 
-type Hit = { kind: "Cara" | "Menu" | "Tombol" | "Istilah" | "Alur"; title: string; body: ReactNode; text: string; menu?: MenuGuide; score: number; id: string };
+type Hit = { kind: "Cara" | "Menu" | "Tombol" | "Istilah" | "Alur" | "Batasan" | "Syarat"; title: string; body: ReactNode; text: string; menu?: MenuGuide; score: number; id: string };
 
 function score(words: string[][], title: string, keys: string, body: string): number {
   const t = norm(title), k = norm(keys), b = norm(body);
@@ -47,7 +47,7 @@ function Hl({ text, words }: { text: string; words: string[] }) {
 }
 
 const menuOf = (key?: string) => MENUS.find((m) => m.key === key);
-const SUGGEST = ["cek hasil training", "upload file besar", "approve PPFG", "kenapa UNAVAILABLE", "buat laporan", "konfirmasi event", "ganti password", "zona rathole", "cut-off"];
+const SUGGEST = ["seberapa akurat", "syarat realtime", "cek hasil training", "upload file besar", "approve PPFG", "kenapa UNAVAILABLE", "buat laporan", "konfirmasi event", "ganti password", "zona rathole", "cut-off"];
 
 /* ---------- komponen tampilan ---------- */
 function Steps({ h, words }: { h: HowTo; words: string[] }) {
@@ -81,7 +81,7 @@ function MenuCard({ m, words, open }: { m: MenuGuide; words: string[]; open?: bo
 export default function Panduan() {
   const [sp, setSp] = useSearchParams();
   const [q, setQ] = useState(sp.get("q") || "");
-  const [tab, setTab] = useState<"alur" | "menu" | "cara" | "istilah">("alur");
+  const [tab, setTab] = useState<"alur" | "menu" | "cara" | "batasan" | "live" | "istilah">("alur");
   const setQuery = (v: string) => { setQ(v); const n = new URLSearchParams(sp); if (v) n.set("q", v); else n.delete("q"); setSp(n, { replace: true }); };
 
   const words = useMemo(() => tokens(q), [q]);
@@ -117,6 +117,14 @@ export default function Panduan() {
         });
       }
     }
+    for (const l of LIMITS) {
+      const s = score(groups, l.title, (l.keywords || "") + " batasan " + l.group, l.desc + " " + l.impact);
+      if (s) out.push({ kind: "Batasan", id: "l-" + l.id, title: l.title, text: l.desc, score: s + 1, body: <LimitView l={l} words={hlWords} /> });
+    }
+    for (const r of LIVE_REQS) {
+      const s = score(groups, r.title, (r.keywords || "") + " syarat live monitor realtime", r.need + " " + r.ifMissing);
+      if (s) out.push({ kind: "Syarat", id: "r-" + r.id, title: r.title, text: r.need, menu: menuOf(r.where), score: s + 1, body: <ReqView r={r} words={hlWords} /> });
+    }
     for (const t of TERMS) {
       const s = score(groups, t.term, t.keywords || "", t.desc);
       if (s) out.push({ kind: "Istilah", id: "t-" + t.term, title: t.term, text: t.desc, score: s, body: <div className="small"><Hl text={t.desc} words={hlWords} /></div> });
@@ -139,7 +147,7 @@ export default function Panduan() {
 
   return (
     <>
-      <div className="top"><h1>Panduan</h1><span className="muted small">alur kerja · fungsi setiap menu &amp; tombol · cara melakukan sesuatu · istilah</span></div>
+      <div className="top"><h1>Panduan</h1><span className="muted small">alur kerja · menu &amp; tombol · cara melakukan sesuatu · batasan sistem · syarat Live Monitor · istilah</span></div>
 
       <div className="card guide-search">
         <label htmlFor="guide-q" className="small muted">Cari cara melakukan sesuatu</label>
@@ -170,7 +178,7 @@ export default function Panduan() {
       ) : (
         <div style={{ marginTop: 12 }}>
           <div className="tabs" role="tablist">
-            {([["alur", "Alur kerja"], ["menu", "Menu & tombol"], ["cara", "Cara melakukan…"], ["istilah", "Istilah"]] as const).map(([k, l]) =>
+            {([["alur", "Alur kerja"], ["menu", "Menu & tombol"], ["cara", "Cara melakukan…"], ["batasan", "Batasan sistem"], ["live", "Syarat Live Monitor"], ["istilah", "Istilah"]] as const).map(([k, l]) =>
               <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}
           </div>
           {tab === "alur" && <div className="grid">{FLOWS.map((f) => <div key={f.id} className="card"><h3>{f.title} <span className="muted small" style={{ fontWeight: 400 }}>· {f.who}</span></h3><FlowView f={f} /></div>)}</div>}
@@ -178,6 +186,8 @@ export default function Panduan() {
           {tab === "cara" && <div className="grid">{HOWTOS.map((h) => (
             <details key={h.id} className="card guide-menu"><summary><b>{h.title}</b></summary><div style={{ marginTop: 8 }}><Steps h={h} words={[]} /></div></details>
           ))}</div>}
+          {tab === "batasan" && <LimitsTab />}
+          {tab === "live" && <LiveTab />}
           {tab === "istilah" && <div className="card"><table><tbody>{TERMS.map((t) => <tr key={t.term}><td style={{ width: "24%" }}><b>{t.term}</b></td><td className="small">{t.desc}</td></tr>)}</tbody></table></div>}
         </div>
       )}
@@ -201,6 +211,73 @@ function FlowView({ f }: { f: (typeof FLOWS)[number] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function LimitView({ l, words }: { l: Limit; words: string[] }) {
+  return (
+    <div className="small">
+      <div><Hl text={l.desc} words={words} /></div>
+      <div className="guide-impact"><b>Artinya bagi user:</b> <Hl text={l.impact} words={words} /></div>
+      <div className="row" style={{ marginTop: 6 }}><span className="chip">{l.group}</span></div>
+    </div>
+  );
+}
+
+function ReqView({ r, words }: { r: Req; words: string[] }) {
+  const m = menuOf(r.where);
+  return (
+    <div className="small">
+      <div><b>Yang dibutuhkan:</b> <Hl text={r.need} words={words} /></div>
+      <div className="guide-impact"><b>Bila tidak terpenuhi:</b> <Hl text={r.ifMissing} words={words} /></div>
+      <div className="row" style={{ marginTop: 6 }}>
+        <span className={`lvl ${r.required ? "k-wajib" : "k-opsional"}`}>{r.required ? "Wajib" : "Opsional / disarankan"}</span>
+        {m && <Link to={m.path} className="chip guide-go">Buka {m.title} →</Link>}
+      </div>
+    </div>
+  );
+}
+
+function LimitsTab() {
+  const groups = Array.from(new Set(LIMITS.map((l) => l.group)));
+  return (
+    <div className="grid">
+      <div className="note">Bagian ini menjelaskan apa yang <b>tidak</b> bisa dilakukan sistem dan seberapa jauh hasilnya bisa dipercaya, supaya harapan user sesuai kemampuan sistem. Angka akurasi per 22 Nov 2026 (model ecd-rf v1); akan berubah setelah training ulang.</div>
+      {groups.map((g) => (
+        <div key={g} className="card">
+          <h3>{g}</h3>
+          <div className="grid">{LIMITS.filter((l) => l.group === g).map((l) => (
+            <details key={l.id} className="guide-menu guide-limit"><summary><b>{l.title}</b></summary><div style={{ marginTop: 6 }}><LimitView l={l} words={[]} /></div></details>
+          ))}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LiveTab() {
+  return (
+    <div className="grid">
+      <div className="note">Live Monitor bukan koneksi langsung ke Navita. Monitor "realtime" bila file ekspor Navita terus masuk ke folder pantau server. Checklist di bawah menjelaskan apa yang harus ada, dan apa gejalanya bila tidak terpenuhi.</div>
+      <div className="card">
+        <h3>Alur data realtime</h3>
+        <div className="guide-flow">
+          {[["Navita di rig", "Data rig + manual entry MW (Rec 04) oleh RTO"], ["Ekspor berkala", "Rec 01 Time (+ Rec 02 bila ada PWD), tiap 1–5 menit"],
+            ["Folder pantau server", "data/inbox/<nama sumur>/ — dipindai tiap 60 detik"], ["Ingest + QC", "Data masuk database, temuan QC dicatat"],
+            ["Analisis", "State, ECD ⓥ, margin, detektor anomali, level alert"], ["Layar", "Live Monitor refresh 30 dtk, Overview 60 dtk"]].map(([a, b], i) => (
+            <div key={i} className="guide-step"><div className="guide-num">{i + 1}</div><div><b>{a}</b><div className="small muted">{b}</div></div></div>
+          ))}
+        </div>
+      </div>
+      <div className="card">
+        <h3>Checklist syarat</h3>
+        <table><thead><tr><th style={{ width: "26%" }}>Syarat</th><th>Yang dibutuhkan</th><th style={{ width: "30%" }}>Bila tidak terpenuhi</th></tr></thead>
+          <tbody>{LIVE_REQS.map((r) => (
+            <tr key={r.id}><td><b>{r.title}</b><div style={{ marginTop: 4 }}><span className={`lvl ${r.required ? "k-wajib" : "k-opsional"}`}>{r.required ? "Wajib" : "Opsional"}</span></div></td>
+              <td className="small">{r.need}</td><td className="small muted">{r.ifMissing}</td></tr>
+          ))}</tbody></table>
+      </div>
     </div>
   );
 }

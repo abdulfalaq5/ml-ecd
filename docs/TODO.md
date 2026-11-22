@@ -77,7 +77,17 @@ Urutan kerja setelah gate Fase 0:
 
 ---
 
-### 0.00 Studi Kasus Rathole GW339 (usulan klien 22 Nov 2026) — DONE v1
+### 0.000 Audit analisis & ML (22 Nov 2026)
+
+- **Bug diperbaiki:** MW (effective-from hole depth) memakai `cummax()` polos → satu spike hole depth mengunci MW terlalu tinggi.
+  GW339: spike 635→3634 ft (29 Okt, sesudah data kosong 22,6 jam) membuat MW 10.0 (seharusnya 8.9/9.7) pada 8.521 baris / 760 titik berlabel.
+  Diganti `hole_reached_robust()` (kenaikan ≤ 200 ft + 1000 ft/jam × jeda, maks ±300 ft; lebih besar butuh 10 sampel konfirmasi). Test: `tests/test_hole_reached.py`.
+  Sumur training tidak terdampak (0 titik berlabel berubah) → model ecd-rf v1 tidak perlu dilatih ulang.
+- Angka blind GW339 dengan MW benar: MAE 0,364 / bias −0,206 / cakupan interval 66% (catatan model tersimpan masih 0,337 sampai training ulang berikutnya).
+- Tidak ada look-ahead di detektor; ECD terukur tidak dipakai sebagai fitur; LOWO grouped per sumur; prediksi 100% saat pompa hidup, 0 saat pompa mati.
+- Tetap terbuka: interval terlalu sempit di sumur blind (31–66% vs target 90%); bias BDSI 60; MW BEKA-253/254/255 belum ada; hole depth GW339 14–16 Nov naik ke 9909 ft (kemungkinan glitch tracking depth, tidak memengaruhi MW).
+
+## 0.00 Studi Kasus Rathole GW339 (usulan klien 22 Nov 2026) — DONE v1
 - Sumber: DDR GW-339 #38 (11 Nov) & #39 (12 Nov Rev 1). Casing 7" di-set lebih awal di 5354 ftMD (tag 5330–5351 saat RIH), TD 8-1/2" 5651 → rathole ±297 ft; CIP 12 Nov 19:30 WIB. 6 event dari DDR dicatat (status Draft → perlu dikonfirmasi Drilling Eng).
 - Fitur: field `rathole` per sumur (Data & Upload → Edit sumur), tanda zona di setiap indikasi (Live Monitor / Analisis Anomali), arsir rathole di Profil Depth, halaman **K · Studi Kasus Rathole** (fase 1 validasi ECD ⓥ vs APWD, fase 2 tren harian di zona rathole), jenis laporan `rathole` (Excel 6 sheet).
 - Hasil awal: fase 1 (GW339 blind) MAE 0.337 ppg, bias −0.16; di kedalaman rathole bias −0.44 (ECD−MW naik ke ±1.1 ppg). Fase 2: SPP/100 gpm 391→498→550→743 (17–20 Nov), 16/17 torque spike & 27/47 pack-off di zona rathole; ECD ⓥ datar ±10.95 → model belum menangkap efek lubang 6-1/8"/restriksi.

@@ -110,3 +110,7 @@ mark { background: #FFE8B3; color: inherit; border-radius: 3px; padding: 0 1px; 
 .guide-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
 .guide-step { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel2); }
 .guide-num { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--ecd); color: #fff; font: 600 13px var(--mono); display: flex; align-items: center; justify-content: center; }
+.guide-impact { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--ecd); background: #FFF6EC; border-radius: 0 6px 6px 0; }
+.guide-limit { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel2); }
+.k-wajib { background: #FDE8E9; color: #A3242A; } .k-opsional { background: #EEF1F5; color: #3A4552; }
+.k-Batasan { background: #FDE8E9; color: #A3242A; } .k-Syarat { background: #E8F5EE; color: #146C3E; }

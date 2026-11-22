@@ -51,12 +51,38 @@ def derive_state(df: pd.DataFrame) -> pd.Series:
     return st
 
 
+def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float = 1000.0, confirm: int = 10) -> pd.Series:
+    """Hole depth tertinggi yang sudah dicapai, tahan glitch (kausal, untuk MW effective-from depth).
+
+    cummax() polos terkunci selamanya oleh satu spike (mis. 635 → 3634 ft di GW339, 439.386 ft di BDSI 21) sehingga MW
+    sesudahnya ikut salah. Kenaikan diterima bila masuk akal secara fisik (≤ base_ft + ft_per_h × jeda); lompatan lebih
+    besar (termasuk sesudah data kosong lama, contoh spike GW339 29 Okt) baru diterima bila bertahan `confirm` sampel
+    berturut-turut (mis. data lanjut setelah jeda / koreksi depth)."""
+    v = hole.to_numpy(dtype=float)
+    t = hole.index.asi8 / 1e9 if isinstance(hole.index, pd.DatetimeIndex) else np.arange(len(v), dtype=float) * 30
+    out = np.full(len(v), np.nan)
+    cur, t_cur, pend = np.nan, None, 0
+    for i, x in enumerate(v):
+        if not np.isnan(x):
+            if np.isnan(cur) or x <= cur:  # sampel wajar (tidak lebih dalam dari yang sudah dicapai)
+                cur = x if np.isnan(cur) else cur
+                t_cur, pend = t[i], 0
+            elif x - cur <= base_ft + ft_per_h * min(max(0.0, t[i] - t_cur), 360.0) / 3600:  # maks ±300 ft; lebih → konfirmasi
+                cur, t_cur, pend = x, t[i], 0
+            else:
+                pend += 1
+                if pend >= confirm:
+                    cur, t_cur, pend = x, t[i], 0
+        out[i] = cur
+    return pd.Series(out, index=hole.index)
+
+
 def add_features(df: pd.DataFrame, mw: pd.DataFrame, survey: pd.DataFrame) -> pd.DataFrame:
     """Tambahkan state + fitur turunan. MW = Rec 04 as-of hole depth tertinggi yang sudah dicapai
     (aturan effective-from 'sejak bit melewati depth', Lampiran H B14)."""
     out = df.copy()
     out["state"] = derive_state(out)
-    hole_reached = out.get("hole_depth", out.get("bit_depth")).cummax()
+    hole_reached = hole_reached_robust(out.get("hole_depth", out.get("bit_depth")))
     out["mw"] = asof_step(hole_reached, mw["md"], mw["mw"]) if len(mw) else np.nan
     if len(survey) and survey["tvd"].notna().sum() >= 2:
         out["tvd_bit"] = interp(out["bit_depth"], survey["md"], survey["tvd"])

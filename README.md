@@ -213,13 +213,15 @@ docker compose up -d --build
 
 ### 5.4 Menu Panduan (bantuan di aplikasi)
 
-Menu **? · Panduan** (paling bawah di menu kiri) punya empat tab:
+Menu **? · Panduan** (paling bawah di menu kiri) punya enam tab:
 
 | Tab | Isi |
 |---|---|
 | **Alur kerja** | Langkah bernomor untuk alur utama (file data → laporan), alur harian RTO/Drilling Eng, dan alur Data/ML (data baru → model baru). Tiap langkah punya tautan ke menunya |
 | **Menu & tombol** | Untuk setiap menu: fungsinya, kapan dipakai, dan tabel semua tombol/kontrol beserta fungsinya dan **peran yang boleh memakainya** |
 | **Cara melakukan…** | Panduan langkah demi langkah, mis. cara training, cek hasil training, upload file besar, approve PPFG, konfirmasi event, analisis cut-off, isi zona rathole, ganti password, backup |
+| **Batasan sistem** | Apa yang **tidak** bisa dilakukan sistem dan seberapa jauh hasilnya bisa dipercaya: lingkup (bukan sistem kontrol, NORMAL ≠ aman, bukan peramal, bukan simulator hidraulik), akurasi model per sumur blind, interval yang terlalu sempit di sumur baru, input yang belum dipakai model (ukuran lubang, BHA, reologi), kualitas data, PPFG, dan keterbatasan operasional |
+| **Syarat Live Monitor** | Alur data realtime (Navita → ekspor berkala → folder pantau → analisis → layar) dan checklist syarat wajib/opsional, beserta gejalanya bila tidak terpenuhi |
 | **Istilah** | ECD ⓥ, LOWO, sumur blind, MAE, OOD, interval prediksi, promotion gate, rathole, dll. |
 
 **Pencarian** (kolom di atas tab):
