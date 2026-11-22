@@ -66,3 +66,6 @@ Thumbs.db
 .vscode/
 *.swp
 .claude/
+
+# output tools/bending
+bending_out/

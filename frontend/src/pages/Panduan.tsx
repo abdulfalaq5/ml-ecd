@@ -47,7 +47,7 @@ function Hl({ text, words }: { text: string; words: string[] }) {
 }
 
 const menuOf = (key?: string) => MENUS.find((m) => m.key === key);
-const SUGGEST = ["seberapa akurat", "syarat realtime", "cek hasil training", "upload file besar", "approve PPFG", "kenapa UNAVAILABLE", "buat laporan", "konfirmasi event", "ganti password", "zona rathole", "cut-off"];
+const SUGGEST = ["seberapa akurat", "syarat realtime", "cek hasil training", "upload file besar", "approve PPFG", "kenapa UNAVAILABLE", "buat laporan", "konfirmasi event", "ganti password", "zona rathole", "cut-off", "bending moment"];
 
 /* ---------- komponen tampilan ---------- */
 function Steps({ h, words }: { h: HowTo; words: string[] }) {
@@ -259,7 +259,7 @@ function LimitsTab() {
 function LiveTab() {
   return (
     <div className="grid">
-      <div className="note">Live Monitor bukan koneksi langsung ke Navita. Monitor "realtime" bila file ekspor Navita terus masuk ke folder pantau server. Checklist di bawah menjelaskan apa yang harus ada, dan apa gejalanya bila tidak terpenuhi.</div>
+      <div className="note">Live Monitor bukan koneksi langsung ke Navita dan bukan pengganti tampilan realtime Navita. Aplikasi ini lapisan analisa (ECD ⓥ, margin, anomali, bending) di atas data ekspor Navita, sehingga sifatnya near-realtime: tertinggal sebesar interval ekspor. Monitor terus terbarui bila file ekspor Navita terus masuk ke folder pantau server. Checklist di bawah menjelaskan apa yang harus ada, dan apa gejalanya bila tidak terpenuhi.</div>
       <div className="card">
         <h3>Alur data realtime</h3>
         <div className="guide-flow">

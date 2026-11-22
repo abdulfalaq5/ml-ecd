@@ -1,0 +1,56 @@
+{
+  "_catatan": "Format manual (tanpa katalog): komponen dari BAWAH ke atas, od/id body (inch), length ft, weight_ppf lb/ft. Komponen terakhir length=null (sampai permukaan). bend_limit_dls/ksi = batas sambungan (null = tidak dicek). Lebih disarankan memakai katalog + runs.example.json.",
+  "name": "Contoh 8-1/2in BHA + 5in DP",
+  "E_psi": 30000000.0,
+  "friction": {
+    "cased": 0.2,
+    "open": 0.3
+  },
+  "block_weight_klb": 0.0,
+  "mw_ppg": null,
+  "shoe_md_ft": null,
+  "components": [
+    {
+      "name": "Bit + motor 6-3/4",
+      "od": 6.75,
+      "id": 2.5,
+      "length": 35,
+      "weight_ppf": 100,
+      "bha": true
+    },
+    {
+      "name": "MWD/LWD 6-3/4",
+      "od": 6.75,
+      "id": 2.81,
+      "length": 60,
+      "weight_ppf": 100,
+      "bha": true
+    },
+    {
+      "name": "Drill collar 6-1/2",
+      "od": 6.5,
+      "id": 2.8125,
+      "length": 270,
+      "weight_ppf": 91,
+      "bha": true
+    },
+    {
+      "name": "HWDP 5",
+      "od": 5.0,
+      "id": 3.0,
+      "length": 900,
+      "weight_ppf": 49.3,
+      "bha": true,
+      "tj_od": 6.625
+    },
+    {
+      "name": "DP 5 (19.5 ppf)",
+      "od": 5.0,
+      "id": 4.276,
+      "length": null,
+      "weight_ppf": 22.6,
+      "bha": false,
+      "tj_od": 6.625
+    }
+  ]
+}

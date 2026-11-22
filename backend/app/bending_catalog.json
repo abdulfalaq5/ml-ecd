@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "updated": "2026-11-22",
+  "_catatan": [
+    "Katalog komponen string + preset per section untuk estimasi bending / side force (app/core/bending.py, tools/bending).",
+    "od/id = ukuran BODY pipa (inch) → kekakuan & bending. tj_od = OD tool joint / coupling (untuk torque nanti). weight_ppf = berat di udara (lb/ft), untuk DP pakai adjusted weight termasuk tool joint.",
+    "Angka = nominal API (5DP / 5CT / drill collar standar), BELUM dicocokkan dengan inventaris rig PHR. Collar 8-1/4\" (section 12-1/4\") dan 7\" (section 8-1/2\") sesuai info klien 22 Nov 2026.",
+    "bend_limit_dls (°/100 ft) / bend_limit_ksi = batas bending sambungan dari DATASHEET PABRIKAN connection. Sengaja dikosongkan (null = tidak dicek) sampai datasheet PHR tersedia.",
+    "Preset: count = jumlah joint (× joint_ft), length = panjang (ft). Komponen terakhir tanpa count/length = mengisi sampai permukaan. Jumlah DC/HWDP di preset = TIPIKAL, ganti per sumur lewat 'counts' di file runs."
+  ],
+  "items": {
+    "DP_5_19.5": {"type": "DP", "name": "DP 5\" 19,5 ppf (NC50)", "od": 5.0, "id": 4.276, "weight_ppf": 22.6, "tj_od": 6.625, "joint_ft": 31, "grade": "G-105", "connection": "NC50", "bend_limit_dls": null, "bend_limit_ksi": null},
+    "DP_5_25.6": {"type": "DP", "name": "DP 5\" 25,6 ppf (NC50)", "od": 5.0, "id": 4.0, "weight_ppf": 28.5, "tj_od": 6.625, "joint_ft": 31, "grade": "S-135", "connection": "NC50", "bend_limit_dls": null, "bend_limit_ksi": null},
+    "DP_3.5_13.3": {"type": "DP", "name": "DP 3-1/2\" 13,3 ppf (NC38)", "od": 3.5, "id": 2.764, "weight_ppf": 14.7, "tj_od": 4.75, "joint_ft": 31, "grade": "G-105", "connection": "NC38", "bend_limit_dls": null, "bend_limit_ksi": null},
+    "HWDP_5": {"type": "HWDP", "name": "HWDP 5\" (NC50)", "od": 5.0, "id": 3.0, "weight_ppf": 49.3, "tj_od": 6.625, "joint_ft": 31, "connection": "NC50"},
+    "HWDP_3.5": {"type": "HWDP", "name": "HWDP 3-1/2\" (NC38)", "od": 3.5, "id": 2.0625, "weight_ppf": 25.3, "tj_od": 4.75, "joint_ft": 31, "connection": "NC38"},
+    "DC_8.25": {"type": "DC", "name": "Drill collar 8-1/4\" x 2-13/16\"", "od": 8.25, "id": 2.8125, "weight_ppf": 161, "joint_ft": 31, "connection": "6-5/8 REG"},
+    "DC_7": {"type": "DC", "name": "Drill collar 7\" x 2-1/4\"", "od": 7.0, "id": 2.25, "weight_ppf": 117, "joint_ft": 31, "connection": "NC50"},
+    "DC_6.5": {"type": "DC", "name": "Drill collar 6-1/2\" x 2-13/16\"", "od": 6.5, "id": 2.8125, "weight_ppf": 91, "joint_ft": 31, "connection": "NC46"},
+    "DC_4.75": {"type": "DC", "name": "Drill collar 4-3/4\" x 2-1/4\"", "od": 4.75, "id": 2.25, "weight_ppf": 47, "joint_ft": 31, "connection": "NC35"},
+    "BHA_DIR_8": {"type": "BHA", "name": "Bit + motor/RSS + MWD 8\"", "od": 8.0, "id": 2.875, "weight_ppf": 150},
+    "BHA_DIR_6.75": {"type": "BHA", "name": "Bit + motor/RSS + MWD 6-3/4\"", "od": 6.75, "id": 2.5, "weight_ppf": 105},
+    "BHA_DIR_4.75": {"type": "BHA", "name": "Bit + motor + MWD 4-3/4\"", "od": 4.75, "id": 1.5, "weight_ppf": 50},
+    "CSG_13.375_68": {"type": "CSG", "name": "Casing 13-3/8\" 68 ppf", "od": 13.375, "id": 12.415, "weight_ppf": 68, "tj_od": 14.375, "joint_ft": 40, "grade": "K-55", "connection": "BTC", "bend_limit_dls": null, "bend_limit_ksi": null},
+    "CSG_9.625_47": {"type": "CSG", "name": "Casing 9-5/8\" 47 ppf", "od": 9.625, "id": 8.681, "weight_ppf": 47, "tj_od": 10.625, "joint_ft": 40, "grade": "L-80", "connection": "BTC", "bend_limit_dls": null, "bend_limit_ksi": null},
+    "CSG_9.625_43.5": {"type": "CSG", "name": "Casing 9-5/8\" 43,5 ppf", "od": 9.625, "id": 8.755, "weight_ppf": 43.5, "tj_od": 10.625, "joint_ft": 40, "grade": "L-80", "connection": "BTC", "bend_limit_dls": null, "bend_limit_ksi": null},
+    "CSG_7_26": {"type": "CSG", "name": "Casing/liner 7\" 26 ppf", "od": 7.0, "id": 6.276, "weight_ppf": 26, "tj_od": 7.656, "joint_ft": 40, "grade": "L-80", "connection": "BTC", "bend_limit_dls": null, "bend_limit_ksi": null},
+    "CSG_7_23": {"type": "CSG", "name": "Casing/liner 7\" 23 ppf", "od": 7.0, "id": 6.366, "weight_ppf": 23, "tj_od": 7.656, "joint_ft": 40, "grade": "L-80", "connection": "BTC", "bend_limit_dls": null, "bend_limit_ksi": null},
+    "LNR_4.5_11.6": {"type": "CSG", "name": "Liner 4-1/2\" 11,6 ppf", "od": 4.5, "id": 4.0, "weight_ppf": 11.6, "tj_od": 5.0, "joint_ft": 40, "grade": "L-80", "connection": "BTC", "bend_limit_dls": null, "bend_limit_ksi": null},
+    "HGR_7": {"type": "HGR", "name": "Liner hanger 7\" + running tool", "od": 8.25, "id": 4.0, "weight_ppf": 120},
+    "HGR_4.5": {"type": "HGR", "name": "Liner hanger 4-1/2\" + running tool", "od": 5.75, "id": 2.5, "weight_ppf": 60}
+  },
+  "presets": {
+    "BHA_12.25_STD": {"kind": "drill", "name": "BHA 12-1/4\" standar (DC 8-1/4\")", "bit_size": 12.25, "friction": {"cased": 0.20, "open": 0.30}, "components": [
+      {"item": "BHA_DIR_8", "length": 95},
+      {"item": "DC_8.25", "count": 6},
+      {"item": "HWDP_5", "count": 15},
+      {"item": "DP_5_19.5"}
+    ]},
+    "BHA_8.5_STD": {"kind": "drill", "name": "BHA 8-1/2\" standar (DC 7\")", "bit_size": 8.5, "friction": {"cased": 0.20, "open": 0.30}, "components": [
+      {"item": "BHA_DIR_6.75", "length": 95},
+      {"item": "DC_7", "count": 6},
+      {"item": "HWDP_5", "count": 15},
+      {"item": "DP_5_19.5"}
+    ]},
+    "BHA_6.125_STD": {"kind": "drill", "name": "BHA 6-1/8\" standar (DC 4-3/4\")", "bit_size": 6.125, "friction": {"cased": 0.20, "open": 0.30}, "components": [
+      {"item": "BHA_DIR_4.75", "length": 90},
+      {"item": "DC_4.75", "count": 6},
+      {"item": "HWDP_3.5", "count": 15},
+      {"item": "DP_3.5_13.3"}
+    ]},
+    "CSG_13.375_RUN": {"kind": "casing", "name": "Run casing 13-3/8\" 68 ppf", "bit_size": 17.5, "friction": {"cased": 0.25, "open": 0.35}, "components": [
+      {"item": "CSG_13.375_68", "name": "Shoe track 13-3/8\"", "length": 85},
+      {"item": "CSG_13.375_68"}
+    ]},
+    "CSG_9.625_RUN": {"kind": "casing", "name": "Run casing 9-5/8\" 47 ppf", "bit_size": 12.25, "friction": {"cased": 0.25, "open": 0.35}, "components": [
+      {"item": "CSG_9.625_47", "name": "Shoe track 9-5/8\"", "length": 85},
+      {"item": "CSG_9.625_47"}
+    ]},
+    "CSG_7_RUN": {"kind": "casing", "name": "Run casing 7\" 26 ppf dari permukaan", "bit_size": 8.5, "friction": {"cased": 0.25, "open": 0.35}, "components": [
+      {"item": "CSG_7_26", "name": "Shoe track 7\"", "length": 85},
+      {"item": "CSG_7_26"}
+    ]},
+    "LNR_7_ON_DP5": {"kind": "liner", "name": "Run liner 7\" 26 ppf on DP 5\"", "bit_size": 8.5, "friction": {"cased": 0.30, "open": 0.40}, "components": [
+      {"item": "CSG_7_26", "name": "Shoe track 7\"", "length": 85},
+      {"item": "CSG_7_26", "name": "Liner 7\"", "length": 2915},
+      {"item": "HGR_7", "length": 30},
+      {"item": "DP_5_19.5", "name": "Landing string DP 5\"", "bha": false}
+    ]},
+    "LNR_4.5_ON_DP3.5": {"kind": "liner", "name": "Run liner 4-1/2\" on DP 3-1/2\"", "bit_size": 6.125, "friction": {"cased": 0.30, "open": 0.40}, "components": [
+      {"item": "LNR_4.5_11.6", "name": "Shoe track 4-1/2\"", "length": 85},
+      {"item": "LNR_4.5_11.6", "name": "Liner 4-1/2\"", "length": 1500},
+      {"item": "HGR_4.5", "length": 25},
+      {"item": "DP_3.5_13.3", "name": "Landing string DP 3-1/2\"", "bha": false}
+    ]}
+  }
+}

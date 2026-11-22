@@ -77,6 +77,25 @@ Urutan kerja setelah gate Fase 0:
 
 ---
 
+### 0.00000 Posisi aplikasi & prioritas (keputusan klien 22 Nov 2026)
+
+- Aplikasi = **lapisan analisa di atas Navita**, bukan pengganti tampilan realtime. Alasan klien: selalu ada delay karena file harus diekspor/didownload lalu dimasukkan, dan Navita sudah punya realtime.
+- Fokus nilai tambah: ECD ⓥ, estimasi bending / side force / hookload model, margin PPFG, deteksi anomali, studi kasus, laporan. Live Monitor tetap ada sebagai tampilan **hasil analisa near-realtime**.
+- [x] Panduan (Batasan "Lapisan analisa di atas Navita", teks Live Monitor, syarat aliran data), README §1/§5.1 diperbarui.
+- [x] Bending: inti dipindah ke `backend/app/core/bending.py` (+ 9 test), katalog `backend/app/bending_catalog.json` (nominal API; DC 8-1/4" untuk 12-1/4", DC 7" untuk 8-1/2" sesuai klien) + preset per section, runs per sumur "mulai hole depth X" (seperti MW Rec 04). Script `tools/bending` memakai modul yang sama.
+- [x] Rencana integrasi ke aplikasi: `docs/BENDING_INTEGRATION.md` (tabel, API, UI, hak akses).
+- [ ] Tanya klien: Navita bisa ekspor otomatis terjadwal / WITSML? Navita bisa import channel LAS (untuk menampilkan ECD ⓥ & bending di Navita)?
+- [ ] Konfirmasi katalog dari klien (ukuran DP/HWDP/DC rig, jumlah DC/HWDP per section, casing/liner + connection, datasheet batas bending sambungan) → lalu bangun tabel/API/UI sesuai `docs/BENDING_INTEGRATION.md` §8.
+
+### 0.0000 Estimasi bending moment (permintaan klien 22 Nov 2026) — script v1, belum masuk aplikasi
+
+- Konteks: laporan SLB NFQ24-04 hal. 5 (`BND_MAX_DMM` / `BND_AVG_DMM`) = sensor downhole di BHA, dibaca dari memori (MADPASS). Tidak bisa dari Rec 01; data PHR tidak punya channel bending; vibrasi Rec 02 hampir kosong (BDSI 18 STICKSLIP 178/5.129 baris, MANGGA VIBLAT semua 0).
+- Disepakati klien: buat **estimasi** sebagai tambahan analisa. Script `tools/bending/` (bending = E·I·κ dari survey Rec 07, side force soft-string Johancsik dengan FF + berat block dikalibrasi ke hookload PU/SO terukur, channel per 30 s → CSV + LAS).
+- Uji (string contoh): BDSI 18 DLS maks 7,5°/100 ft → bending BHA 27,4 kft·lbf; kalibrasi FF 0,30, block 27,4 klb, PU cocok (median 1,3 klb), SO horizontal meleset ±20 klb.
+- Butuh dari klien: BHA report / string design per run, shoe MD, event stuck berlabel (untuk ambang).
+- 22 Nov (lanjutan): klien — OD tool joint DP ±6-5/8", hole size boleh di-update manual, lubang dianggap slick; minta entry manual seperti MW Rec 04 (belum dibuat: usulan form "String & Lubang" di Edit sumur, atau record manual Navita). Ditambah template casing/liner + cek batas bending sambungan (`bend_limit_dls` / `bend_limit_ksi`, channel `BEND_UTIL_MAX`, `bending_limits.csv`); uji run casing 7" GW339 11–12 Nov (ppf & batas = asumsi).
+- Bila hasil dengan BHA asli meyakinkan: jadikan channel di Analisis Anomali / Live Monitor (perlu input BHA per run di aplikasi).
+
 ### 0.000 Audit analisis & ML (22 Nov 2026)
 
 - **Bug diperbaiki:** MW (effective-from hole depth) memakai `cummax()` polos → satu spike hole depth mengunci MW terlalu tinggi.

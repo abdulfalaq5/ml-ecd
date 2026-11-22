@@ -2,6 +2,8 @@
 
 Sistem monitoring **Equivalent Circulating Density (ECD)** untuk operasi pengeboran. ECD diestimasi dari parameter permukaan rig (flow, SPP, RPM, hookload, kedalaman, MW, survey). Estimasi ini disebut **ECD ⓥ** (virtual ECD) dan dipakai pada run tanpa sensor PWD/ECD downhole, misalnya clean-out, reaming, dan BHA rotary. Hasilnya dibandingkan dengan PPFG untuk margin dan alert, dan dilengkapi detektor indikasi masalah lubang (pack-off, tight spot, loss, influx, stuck pipe).
 
+> **Posisi aplikasi:** lapisan **analisa** di atas Navita, bukan pengganti tampilan realtime Navita. Aplikasi fokus pada yang tidak ada di Navita: ECD ⓥ, estimasi bending / side force / hookload model, margin PPFG, deteksi anomali, studi kasus, dan laporan. Data masuk dari file ekspor Navita, sehingga sifatnya **near-realtime**: tertinggal sebesar interval ekspor.
+
 > Sistem ini **alat bantu keputusan**, bukan pengganti engineer. Setiap alert adalah *indikasi* yang wajib diverifikasi. Threshold hanya berlaku setelah disetujui Drilling Engineer + HSE.
 
 Semua komponen berjalan di **Docker**. Server tidak perlu Python, Node, atau PostgreSQL.
@@ -37,6 +39,7 @@ Semua komponen berjalan di **Docker**. Server tidak perlu Python, Node, atau Pos
 | **PPFG berversi** | Rec 03 masuk sebagai *draft*. Margin hanya memakai versi yang sudah **approved**; koreksi dibuat sebagai salinan versi baru. |
 | **Zona rathole & studi kasus** | Zona open hole di bawah shoe (mis. casing di-set lebih awal) per sumur: diarsir di Profil Depth, ditandai di Live Monitor, dan setiap indikasi diberi label zona. Halaman Studi Kasus Rathole membagi analisis jadi dua fase: fase 1 menguji ECD ⓥ terhadap ECD terukur, fase 2 memantau tren hidraulik dan indikasi di zona rathole. |
 | **Laporan** | Harian, event/studi kasus, evaluasi model, QC data, studi kasus rathole. Ekspor Excel/cetak. Narasi dibuat otomatis: **dibantu AI bila `ANTHROPIC_API_KEY` diisi**, atau dari templat angka laporan (tanpa AI) bila kosong / AI gagal. Ke AI hanya dikirim ringkasan angka. |
+| **Estimasi bending & side force** | Bending moment (E·I·κ dari survey), bending stress vs **batas bending sambungan**, side force per joint, dan hookload model pick-up/slack-off (broomstick, friction factor dikalibrasi ke hookload terukur). Untuk drill string, run casing, dan run liner. Konfigurasi dari **katalog komponen + preset per section**, dipilih per run "mulai hole depth X" seperti MW Rec 04. Saat ini lewat script `tools/bending` (output CSV/LAS per 30 detik); rencana masuk aplikasi ada di [`docs/BENDING_INTEGRATION.md`](docs/BENDING_INTEGRATION.md). **Estimasi, bukan pengukuran sensor downhole.** |
 | **Panduan di aplikasi** | Menu Panduan berisi alur kerja, fungsi setiap menu & tombol (beserta peran yang boleh memakainya), langkah "cara melakukan…", dan istilah, plus **kolom pencarian** berbahasa sehari-hari. |
 | **Akses** | Akun lokal dengan peran (Admin, Drilling Eng, RTO, HSE, Geomechanics, Viewer) dan audit log untuk setiap perubahan. |
 
@@ -168,7 +171,7 @@ docker compose up -d --build
 | Menu | Kegunaan |
 |---|---|
 | **0 · Overview** | Kartu semua sumur aktif: level alert, ECD, margin, state, sparkline (refresh 60 dtk) |
-| **1 · Live Monitor** | Track multi-kanal (horizontal / log format), ECD terukur vs ECD ⓥ + interval, FG & batas bawah, pressure window, alert terbaru + Ack. Mode realtime / picker waktu |
+| **1 · Live Monitor** | Track multi-kanal (horizontal / log format), ECD terukur vs ECD ⓥ + interval, FG & batas bawah, pressure window, alert terbaru + Ack. Mode realtime / picker waktu. Near-realtime: tertinggal sebesar interval ekspor Navita; tampilan realtime tetap di Navita |
 | **2 · Profil Depth** | ECD, PPFG, MW, dan survey terhadap kedalaman, posisi shoe, dan arsir zona rathole |
 | **3 · Riwayat Event** | Label event (stuck, pack-off, loss, …) dengan alur review Draft → Dikonfirmasi |
 | **4 · Data & Upload** | Tambah sumur, upload file, hasil QC per file, kelengkapan record, edit sumur (section, shoe MD, peran, zona rathole), QC sign-off |
@@ -219,10 +222,10 @@ Menu **? · Panduan** (paling bawah di menu kiri) punya enam tab:
 |---|---|
 | **Alur kerja** | Langkah bernomor untuk alur utama (file data → laporan), alur harian RTO/Drilling Eng, dan alur Data/ML (data baru → model baru). Tiap langkah punya tautan ke menunya |
 | **Menu & tombol** | Untuk setiap menu: fungsinya, kapan dipakai, dan tabel semua tombol/kontrol beserta fungsinya dan **peran yang boleh memakainya** |
-| **Cara melakukan…** | Panduan langkah demi langkah, mis. cara training, cek hasil training, upload file besar, approve PPFG, konfirmasi event, analisis cut-off, isi zona rathole, ganti password, backup |
-| **Batasan sistem** | Apa yang **tidak** bisa dilakukan sistem dan seberapa jauh hasilnya bisa dipercaya: lingkup (bukan sistem kontrol, NORMAL ≠ aman, bukan peramal, bukan simulator hidraulik), akurasi model per sumur blind, interval yang terlalu sempit di sumur baru, input yang belum dipakai model (ukuran lubang, BHA, reologi), kualitas data, PPFG, dan keterbatasan operasional |
+| **Cara melakukan…** | Panduan langkah demi langkah, mis. cara training, cek hasil training, upload file besar, approve PPFG, konfirmasi event, analisis cut-off, isi zona rathole, ganti password, backup, dan menghitung estimasi bending moment (script terpisah) |
+| **Batasan sistem** | Apa yang **tidak** bisa dilakukan sistem dan seberapa jauh hasilnya bisa dipercaya: lingkup (bukan sistem kontrol, NORMAL ≠ aman, bukan peramal, bukan simulator hidraulik, bending moment hanya estimasi), akurasi model per sumur blind, interval yang terlalu sempit di sumur baru, input yang belum dipakai model (ukuran lubang, BHA, reologi), kualitas data, PPFG, dan keterbatasan operasional |
 | **Syarat Live Monitor** | Alur data realtime (Navita → ekspor berkala → folder pantau → analisis → layar) dan checklist syarat wajib/opsional, beserta gejalanya bila tidak terpenuhi |
-| **Istilah** | ECD ⓥ, LOWO, sumur blind, MAE, OOD, interval prediksi, promotion gate, rathole, dll. |
+| **Istilah** | ECD ⓥ, LOWO, sumur blind, MAE, OOD, interval prediksi, promotion gate, rathole, DLS, bending moment, side force, friction factor, dll. |
 
 **Pencarian** (kolom di atas tab):
 - Bisa memakai bahasa sehari-hari, dan sinonim umum dikenali. Contoh: "gimana cara latih ulang model" tetap menemukan *Cara melakukan training model*.
@@ -395,7 +398,9 @@ docker compose exec backend pytest -q      # test otomatis
 ```
 backend/                 FastAPI + ML
   app/ingest/            parser LAS/CSV, mapping kanal (mnemonics.yaml), QC, watcher
-  app/core/              data loader, operating state & fitur, margin, alert, analisis, studi kasus rathole
+  app/core/              data loader, operating state & fitur, margin, alert, analisis, studi kasus rathole,
+                         bending.py (estimasi bending / side force / hookload model, dipakai tools/bending)
+  app/bending_catalog.json  katalog komponen string + preset per section (nominal API, menunggu konfirmasi klien)
   app/ml/pipeline.py     dataset, training A–D, LOWO/blind, inferensi
   app/anomaly/           detektor anomali
   app/reports/           laporan + narasi AI
@@ -405,8 +410,9 @@ frontend/                React + Vite + ECharts, disajikan nginx
   src/pages/             satu file per menu (Panduan.tsx = menu Panduan)
   src/lib/guide.ts       isi menu Panduan (alur, menu & tombol, cara, istilah)
 scripts/                 backup.sh, restore.sh
+tools/bending/           script estimasi bending / side force (run.sh, contoh runs per section) → CSV/LAS; lihat README di folder itu
 deploy/nginx/            contoh reverse proxy untuk domain
-docs/                    SETUP, desain sistem, data dictionary (CHANNELS), mockup UI, TODO/roadmap
+docs/                    SETUP, desain sistem, data dictionary (CHANNELS), mockup UI, TODO/roadmap, BENDING_INTEGRATION
 docker-compose.yml
 .env.example
 ```

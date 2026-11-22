@@ -1,0 +1,31 @@
+{
+  "_catatan": [
+    "Satu baris per run / section, diurutkan dari from_hole_md. Run berlaku saat hole depth tertinggi yang sudah dicapai ≥ from_hole_md (sama seperti MW Rec 04), termasuk saat tripping keluar dari section itu.",
+    "preset = id di katalog (lihat --list-catalog). counts / lengths mengganti jumlah joint / panjang: kunci = id item katalog, atau '#<urutan komponen mulai 1>' bila item yang sama dipakai dua kali (mis. liner).",
+    "shoe_md_ft = shoe casing yang SUDAH terpasang saat run itu (batas friction cased / open hole).",
+    "Untuk komponen di luar katalog, ganti 'preset' dengan 'components': [{name, od, id, length, weight_ppf, bha}, …]."
+  ],
+  "well": "CONTOH",
+  "mw_ppg": null,
+  "runs": [
+    {
+      "from_hole_md": 0,
+      "preset": "BHA_12.25_STD",
+      "hole_size": 12.25,
+      "shoe_md_ft": 350,
+      "counts": {
+        "DC_8.25": 6,
+        "HWDP_5": 15
+      }
+    },
+    {
+      "from_hole_md": 3000,
+      "preset": "BHA_8.5_STD",
+      "hole_size": 8.5,
+      "shoe_md_ft": 2990,
+      "counts": {
+        "DC_7": 6
+      }
+    }
+  ]
+}
