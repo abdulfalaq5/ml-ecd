@@ -4,7 +4,7 @@ import { useApp, useFetch } from "../lib/ctx";
 import { C, dateOnly, ft, n } from "../lib/fmt";
 import { AX, EChart, Err, TIP, WellSelect } from "../components/ui";
 
-const ST: Record<string, string> = { approved: "#4CC38A", draft: "#E8C547", superseded: "#8A96A3" };
+const ST: Record<string, string> = { approved: "#1E9E5A", draft: "#B98900", superseded: "#7A8694" };
 
 export default function FormasiFG() {
   const { wellId, can } = useApp();
@@ -24,9 +24,9 @@ export default function FormasiFG() {
     if (!r.length) return null;
     const mid = r.map((x) => (x.a + x.b) / 2);
     const L = (name: string, k: string, color: string, dash = false) => ({ type: "line", name, step: "middle", data: r.map((x, i) => [x[k], mid[i]]), showSymbol: false, lineStyle: { color, type: dash ? "dashed" : "solid", width: 1.6 }, itemStyle: { color } });
-    return { backgroundColor: "transparent", animation: false, legend: { textStyle: { color: "#C5CDD6" } }, tooltip: { ...TIP, trigger: "item" }, grid: { left: 64, right: 20, top: 40, bottom: 30 },
+    return { backgroundColor: "transparent", animation: false, legend: { textStyle: { color: "#3A4552" } }, tooltip: { ...TIP, trigger: "item" }, grid: { left: 64, right: 20, top: 40, bottom: 30 },
       xAxis: { type: "value", scale: true, name: "ppg", position: "top", ...AX }, yAxis: { type: "value", inverse: true, name: "MD ft", ...AX },
-      series: [L("PP", "pp", C.pp), L("SFG", "sfg", C.sfg, true), L("FG_min", "fg_min", C.fg), L("FG_max", "fg_max", "#F8A5A8", true)] };
+      series: [L("PP", "pp", C.pp), L("SFG", "sfg", C.sfg, true), L("FG_min", "fg_min", C.fg), L("FG_max", "fg_max", "#B42318", true)] };
   }, [rows.data]);
 
   return (
@@ -43,7 +43,7 @@ export default function FormasiFG() {
           <tbody>
             {vers.data?.length === 0 && <tr><td colSpan={8} className="muted">Belum ada PPFG. Upload file Rec 03 di Data &amp; Upload — tiap upload jadi versi draft baru.</td></tr>}
             {vers.data?.map((v) => (
-              <tr key={v.id} className="click" onClick={() => setVid(v.id)} style={{ background: v.id === vid ? "#1A222A" : undefined }}>
+              <tr key={v.id} className="click" onClick={() => setVid(v.id)} style={{ background: v.id === vid ? "#EAF1FA" : undefined }}>
                 <td className="mono">v{v.version}</td><td style={{ color: ST[v.status] }}>{v.status}</td><td>{v.tvd_datum}</td><td>{dateOnly(v.effective_date)}</td>
                 <td className="small">{v.approved_by ? `${v.approved_by} · ${dateOnly(v.approved_at)}` : "—"}</td><td className="small muted">{v.created_by}</td><td className="small">{v.notes}</td>
                 <td className="row" onClick={(e) => e.stopPropagation()}>

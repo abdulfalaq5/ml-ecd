@@ -5,9 +5,9 @@ import { dateOnly, ft, n, wib } from "../lib/fmt";
 import { Err, Kpi, WellSelect } from "../components/ui";
 
 const SEG: Record<string, [string, string]> = {
-  rec01_ecd: ["#4CC38A", "Rec 01 + ECD terukur"], rec01: ["#7DB4FF", "Rec 01 saja (ECD ⓥ)"], ecd_only: ["#E8C547", "ECD tanpa Rec 01"], gap: ["#2A323C", "gap"], none: ["#2A323C", "kosong"],
+  rec01_ecd: ["#1E9E5A", "Rec 01 + ECD terukur"], rec01: ["#2F6FD1", "Rec 01 saja (ECD ⓥ)"], ecd_only: ["#B98900", "ECD tanpa Rec 01"], gap: ["#D5DCE4", "gap"], none: ["#D5DCE4", "kosong"],
 };
-const LVL: Record<string, string> = { ok: "#4CC38A", warn: "#F59E4B", info: "#7DB4FF" };
+const LVL: Record<string, string> = { ok: "#1E9E5A", warn: "#E07A10", info: "#2F6FD1" };
 const RECS: [string, string][] = [["1_time", "01 IDS Rig · time"], ["1_depth", "01 IDS Rig · depth"], ["2_time", "02 MWD/PWD · time"], ["2_depth", "02 MWD/PWD · depth"], ["3_depth", "03 PPFG"], ["4_depth", "04 Mud Weight"], ["7_depth", "07 Survey"]];
 
 export default function DataUpload() {
@@ -78,7 +78,7 @@ export default function DataUpload() {
               <table style={{ marginTop: 8 }}>
                 <thead><tr><th>File</th><th>Status</th><th>Rec</th><th>Basis</th><th>Baris</th><th>QC</th></tr></thead>
                 <tbody>{res.map((r, i) => (
-                  <tr key={i}><td className="small">{r.file}</td><td style={{ color: r.status === "ok" ? "#4CC38A" : r.status === "error" ? "#F2555A" : "#9AA5B1" }}>{r.status}</td>
+                  <tr key={i}><td className="small">{r.file}</td><td style={{ color: r.status === "ok" ? "#1E9E5A" : r.status === "error" ? "#D63A40" : "#5B6775" }}>{r.status}</td>
                     <td className="mono">{r.record ? String(r.record).padStart(2, "0") : ""}</td><td>{r.basis}</td><td className="mono">{r.rows?.toLocaleString()}</td>
                     <td className="small">{r.message || (r.qc || []).filter((x: any) => x.level !== "ok").map((x: any) => x.title).join("; ")}</td></tr>
                 ))}</tbody>
@@ -87,7 +87,7 @@ export default function DataUpload() {
           </div>
           <div className="card">
             <div className="row"><h3 style={{ margin: 0 }}>Kelengkapan data</h3><span className="sp" />
-              {d?.signoff ? <span className="chip" style={{ color: "#4CC38A" }}>QC sign-off {d.signoff.by} · {dateOnly(d.signoff.at)}</span> : can("qc_signoff") && <button onClick={signoff}>QC sign-off</button>}
+              {d?.signoff ? <span className="chip" style={{ color: "#1E9E5A" }}>QC sign-off {d.signoff.by} · {dateOnly(d.signoff.at)}</span> : can("qc_signoff") && <button onClick={signoff}>QC sign-off</button>}
             </div>
             <div className="kpis" style={{ marginTop: 10 }}>
               <Kpi l="Ketersediaan label ECD" v={d?.target_availability != null ? `${Math.round(d.target_availability * 100)}%` : "—"} s="jam pumps-on yang punya ECD terukur" />
@@ -98,12 +98,12 @@ export default function DataUpload() {
               <thead><tr><th>Record</th><th>File</th><th>Baris</th><th>Rentang</th></tr></thead>
               <tbody>{RECS.map(([k, l]) => { const c = d?.completeness?.[k]; return (
                 <tr key={k}><td>{l}</td><td className="mono">{c?.files ?? "—"}</td><td className="mono">{c?.rows?.toLocaleString() ?? "—"}</td>
-                  <td className="small">{c ? (c.t0 ? `${wib(c.t0, true)} → ${wib(c.t1, true)}` : `${ft(c.d0)} → ${ft(c.d1)} ft`) : <span style={{ color: "#F59E4B" }}>belum ada</span>}</td></tr>); })}</tbody>
+                  <td className="small">{c ? (c.t0 ? `${wib(c.t0, true)} → ${wib(c.t1, true)}` : `${ft(c.d0)} → ${ft(c.d1)} ft`) : <span style={{ color: "#E07A10" }}>belum ada</span>}</td></tr>); })}</tbody>
             </table>
           </div>
           <div className="card" style={{ gridColumn: "1 / -1" }}>
             <h3>Timeline cakupan (per jam)</h3>
-            <div style={{ display: "flex", height: 22, borderRadius: 4, overflow: "hidden", background: "#0F151B" }}>
+            <div style={{ display: "flex", height: 22, borderRadius: 4, overflow: "hidden", background: "#F4F6F9" }}>
               {tl.map((s: any, i: number) => { const w = ((new Date(s.t1).getTime() - new Date(s.t0).getTime()) / (T1 - T0)) * 100; return <div key={i} title={`${SEG[s.kind]?.[1]} · ${wib(s.t0, true)} → ${wib(s.t1, true)}`} style={{ width: `${w}%`, background: SEG[s.kind]?.[0] }} />; })}
             </div>
             <div className="row small muted" style={{ marginTop: 6 }}>{tl.length ? <><span>{wib(tl[0].t0, true)}</span><span className="sp" /><span>{wib(tl[tl.length - 1].t1, true)}</span></> : "belum ada data time-based"}</div>
@@ -113,7 +113,7 @@ export default function DataUpload() {
             <h3>Temuan QC</h3>
             {(d?.qc || []).filter((x: any) => x.level !== "ok").length === 0 && <div className="muted small">Tidak ada temuan.</div>}
             {(d?.qc || []).filter((x: any) => x.level !== "ok").map((x: any, i: number) => (
-              <div key={i} style={{ borderTop: "1px solid #222B34", padding: "6px 0" }} className="small">
+              <div key={i} style={{ borderTop: "1px solid #E3E8EE", padding: "6px 0" }} className="small">
                 <b style={{ color: LVL[x.level] }}>{x.level.toUpperCase()}</b> · {x.title} <span className="muted">— {x.file}</span><div className="muted">{x.text}</div>
               </div>
             ))}

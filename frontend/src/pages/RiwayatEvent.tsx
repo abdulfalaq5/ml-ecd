@@ -5,7 +5,7 @@ import { useApp, useFetch } from "../lib/ctx";
 import { ft, wib, toLocalInput } from "../lib/fmt";
 import { Err, Level } from "../components/ui";
 
-const REVIEW_COLOR: Record<string, string> = { Draft: "#9AA5B1", "Menunggu review": "#E8C547", Dikonfirmasi: "#4CC38A", Ditolak: "#F2555A" };
+const REVIEW_COLOR: Record<string, string> = { Draft: "#5B6775", "Menunggu review": "#B98900", Dikonfirmasi: "#1E9E5A", Ditolak: "#D63A40" };
 
 export default function RiwayatEvent() {
   const { wells, wellId, can } = useApp();

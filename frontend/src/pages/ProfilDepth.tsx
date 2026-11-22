@@ -13,24 +13,24 @@ export default function ProfilDepth() {
     const line = (name: string, xs: any[], ys: any[], color: string, dash = false, w = 1.6) => ({ type: "line", name, data: (xs || []).map((x: any, i: number) => [x, ys[i]]), showSymbol: false, lineStyle: { color, width: w, type: dash ? "dashed" : "solid" }, itemStyle: { color } });
     const series: any[] = [];
     if (pp.md) {
-      series.push(line("PP", pp.pp, pp.md, C.pp), line("SFG", pp.sfg, pp.md, C.sfg, true), line("FG_min", pp.fg_min, pp.md, C.fg), line("FG_max", pp.fg_max, pp.md, "#F8A5A8", true, 1));
+      series.push(line("PP", pp.pp, pp.md, C.pp), line("SFG", pp.sfg, pp.md, C.sfg, true), line("FG_min", pp.fg_min, pp.md, C.fg), line("FG_max", pp.fg_max, pp.md, "#B42318", true, 1));
     }
     if (data.mw?.md) series.push({ ...line("MW", data.mw.mw, data.mw.md, C.mw, false, 2), step: "end" });
     if (data.ecd_measured?.md) series.push({ type: "scatter", name: "ECD terukur", data: data.ecd_measured.md.map((m: number, i: number) => [data.ecd_measured.ecd[i], m]), symbolSize: 3, itemStyle: { color: C.ecd } });
-    if (data.shoe_md) series.push({ type: "line", name: "Shoe", data: [], markLine: { symbol: "none", data: [{ yAxis: data.shoe_md }], lineStyle: { color: "#9AA5B1", type: "dotted" }, label: { formatter: `shoe ${ft(data.shoe_md)} ft`, color: "#9AA5B1" } } });
+    if (data.shoe_md) series.push({ type: "line", name: "Shoe", data: [], markLine: { symbol: "none", data: [{ yAxis: data.shoe_md }], lineStyle: { color: "#5B6775", type: "dotted" }, label: { formatter: `shoe ${ft(data.shoe_md)} ft`, color: "#5B6775" } } });
     return {
-      backgroundColor: "transparent", animation: false, legend: { textStyle: { color: "#C5CDD6" }, top: 0 },
+      backgroundColor: "transparent", animation: false, legend: { textStyle: { color: "#3A4552" }, top: 0 },
       grid: { left: 70, right: 30, top: 40, bottom: 40 }, tooltip: { ...TIP, trigger: "item" },
       xAxis: { type: "value", name: "ppg", nameLocation: "middle", nameGap: 26, scale: true, ...AX, position: "top" },
       yAxis: { type: "value", name: "MD (ft)", inverse: true, ...AX, nameLocation: "middle", nameGap: 50 },
-      dataZoom: [{ type: "inside", yAxisIndex: 0 }, { type: "slider", yAxisIndex: 0, right: 0, width: 14, textStyle: { color: "#9AA5B1" } }],
+      dataZoom: [{ type: "inside", yAxisIndex: 0 }, { type: "slider", yAxisIndex: 0, right: 0, width: 14, textStyle: { color: "#5B6775" } }],
       series,
     };
   }, [data]);
   return (
     <>
       <div className="top"><h1>Profil Depth</h1><WellSelect /><span className="sp" />
-        {data?.ppfg ? <span className="chip">PPFG Rec 03 v{data.ppfg.version} · {data.ppfg.status}</span> : data && <span className="chip" style={{ color: "#F59E4B" }}>Belum ada PPFG approved — approve di Formasi &amp; FG</span>}
+        {data?.ppfg ? <span className="chip">PPFG Rec 03 v{data.ppfg.version} · {data.ppfg.status}</span> : data && <span className="chip" style={{ color: "#E07A10" }}>Belum ada PPFG approved — approve di Formasi &amp; FG</span>}
       </div>
       <Err e={err} />
       {data && (
@@ -49,8 +49,8 @@ export default function ProfilDepth() {
                   {data.intervals.map((r: any, i: number) => (
                     <tr key={i}><td className="mono">{ft(r.a)}–{ft(r.b)}</td><td className="mono">{n(r.pp)}</td><td className="mono">{n(r.sfg)}</td><td className="mono">{n(r.mw)}</td>
                       <td className="mono">{n(r.ecd)}</td><td className="mono">{n(r.fg_min)}</td>
-                      <td className="mono" style={{ color: r.low_margin < 0 ? "#F2555A" : undefined }}>{n(r.low_margin)}</td><td className="mono">{n(r.up_margin)}</td>
-                      <td className="small" style={{ color: r.low_margin < 0 ? "#F2555A" : "#9AA5B1" }}>{r.flag}</td></tr>
+                      <td className="mono" style={{ color: r.low_margin < 0 ? "#D63A40" : undefined }}>{n(r.low_margin)}</td><td className="mono">{n(r.up_margin)}</td>
+                      <td className="small" style={{ color: r.low_margin < 0 ? "#D63A40" : "#5B6775" }}>{r.flag}</td></tr>
                   ))}
                 </tbody>
               </table>

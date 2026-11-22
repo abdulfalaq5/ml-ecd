@@ -45,7 +45,7 @@ export default function LiveMonitor() {
         <span className="chip">Section {meta?.section || "—"}</span>
         <span className="sp" />
         {meta && <span className="muted small">{wib(meta.data_end, true)} · data {ago(meta.fresh_min)}</span>}
-        {meta && <span className="chip" style={{ color: (meta.fresh_min ?? 99) <= 10 ? "#4CC38A" : "#9AA5B1" }}>{(meta.fresh_min ?? 99) <= 10 ? "LIVE" : "OFFLINE / UPLOAD"}{meta.model ? ` · ${meta.model.status} mode` : ""}</span>}
+        {meta && <span className="chip" style={{ color: (meta.fresh_min ?? 99) <= 10 ? "#1E9E5A" : "#5B6775" }}>{(meta.fresh_min ?? 99) <= 10 ? "LIVE" : "OFFLINE / UPLOAD"}{meta.model ? ` · ${meta.model.status} mode` : ""}</span>}
       </div>
       <Err e={err} />
       {!wellId && <div className="card empty">Pilih atau buat sumur dulu di halaman Data &amp; Upload.</div>}
@@ -56,17 +56,17 @@ export default function LiveMonitor() {
             <span className="chip">State: <b>{STATE_LABEL[sn.state] || sn.state || "—"}</b></span>
             <span className="chip">Bucket: {meta.bucket_s} dtk</span>
             <span className="chip">Model: {meta.model ? `${meta.model.name} (${meta.model.status})` : "belum ada model"}</span>
-            <span className="chip" style={{ color: meta.missing.length ? "#F59E4B" : undefined }}>Fitur valid: {meta.valid_features}/{meta.total_features}{meta.missing.length ? ` · ${meta.missing.join(", ")} ⚠` : ""}</span>
-            <span className="chip" style={{ color: meta.ppfg ? undefined : "#F59E4B" }}>PPFG: {meta.ppfg ? `Rec 03 v${meta.ppfg.version} · ${meta.ppfg.status}${meta.ppfg.approved_by ? " " + meta.ppfg.approved_by : ""}` : "belum ada approved"}</span>
+            <span className="chip" style={{ color: meta.missing.length ? "#E07A10" : undefined }}>Fitur valid: {meta.valid_features}/{meta.total_features}{meta.missing.length ? ` · ${meta.missing.join(", ")} ⚠` : ""}</span>
+            <span className="chip" style={{ color: meta.ppfg ? undefined : "#E07A10" }}>PPFG: {meta.ppfg ? `Rec 03 v${meta.ppfg.version} · ${meta.ppfg.status}${meta.ppfg.approved_by ? " " + meta.ppfg.approved_by : ""}` : "belum ada approved"}</span>
             <span className="chip">MW: Rec 04 · effective-from hole depth</span>
-            {sn.low_conf && <span className="chip" style={{ color: "#E8C547" }}>Low confidence{sn.ood ? " · di luar rentang training" : ""}</span>}
+            {sn.low_conf && <span className="chip" style={{ color: "#B98900" }}>Low confidence{sn.ood ? " · di luar rentang training" : ""}</span>}
           </div>
           <div className="kpis">
             <Kpi l={ecdLabel} v={n(sn.ecd)} color={C.ecd} s={sn.ecd_lo != null ? `interval ${n(sn.ecd_lo)}–${n(sn.ecd_hi)} ppg` : sn.ecd_kind === "m" ? "terukur PWD" : "—"} />
             <Kpi l="FG_min bit / open hole" v={`${n(sn.fg_bit, 1)} / ${n(sn.fg_oh, 1)}`} color={C.fg} s={sn.fg_oh_md ? `titik terlemah OH @${ft(sn.fg_oh_md)} ft` : "shoe belum diisi / PPFG kosong"} />
             <Kpi l="Margin atas bit · OH" v={`${n(sn.margin_up_bit, 1)} · ${n(sn.margin_up_oh, 1)}`} s={sn.interval_half ? `±${n(sn.interval_half)} dari interval` : ""} />
-            <Kpi l="Margin bawah (ECD − max(PP,SFG))" v={n(sn.margin_low, 1)} s={`batas bawah ${n(sn.lower_bit, 1)}`} color={sn.margin_low != null && sn.margin_low < 0.25 ? "#F59E4B" : undefined} />
-            <Kpi l="Margin statis (pumps off)" v={n(sn.margin_static, 1)} s={`MW ${n(sn.mw, 1)} vs batas bawah OH ${n(sn.lower_oh, 1)}`} color={sn.margin_static != null && sn.margin_static < 0 ? "#F2555A" : undefined} />
+            <Kpi l="Margin bawah (ECD − max(PP,SFG))" v={n(sn.margin_low, 1)} s={`batas bawah ${n(sn.lower_bit, 1)}`} color={sn.margin_low != null && sn.margin_low < 0.25 ? "#E07A10" : undefined} />
+            <Kpi l="Margin statis (pumps off)" v={n(sn.margin_static, 1)} s={`MW ${n(sn.mw, 1)} vs batas bawah OH ${n(sn.lower_oh, 1)}`} color={sn.margin_static != null && sn.margin_static < 0 ? "#D63A40" : undefined} />
             <Kpi l="Tingkat alert" v={<Level v={sn.level} big />} s={sn.reason || "tidak ada anomali terdeteksi"} />
           </div>
         </>
@@ -105,7 +105,7 @@ export default function LiveMonitor() {
               {data.detections.slice(0, 12).map((d: any, i: number) => {
                 const k = d.detector + d.start;
                 return (
-                  <div key={i} style={{ borderTop: "1px solid #222B34", padding: "8px 0", opacity: ack[k] ? 0.5 : 1 }}>
+                  <div key={i} style={{ borderTop: "1px solid #E3E8EE", padding: "8px 0", opacity: ack[k] ? 0.5 : 1 }}>
                     <div className="row"><Level v={d.level} /><span className="small mono">{wib(d.start)}</span><span className="sp" /><button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => setAck({ ...ack, [k]: true })}>Ack</button></div>
                     <div className="small" style={{ marginTop: 4 }}>{d.label}{d.md ? ` @${ft(d.md)} ft` : ""}</div>
                     {d.rec && <div className="muted small">Rekomendasi verifikasi: {d.rec}</div>}
@@ -124,16 +124,16 @@ export default function LiveMonitor() {
 
 function PressureWindow({ sn, meta }: { sn: any; meta: any }) {
   if (!sn) return null;
-  const items = [["MW", sn.mw, C.mw], ["max(PP,SFG)", sn.lower_bit, C.sfg], [sn.ecd_kind === "m" ? "ECD" : "ECD ⓥ", sn.ecd, C.ecd], ["FG OH", sn.fg_oh, C.fg], ["FG bit", sn.fg_bit, "#F8A5A8"]]
+  const items = [["MW", sn.mw, C.mw], ["max(PP,SFG)", sn.lower_bit, C.sfg], [sn.ecd_kind === "m" ? "ECD" : "ECD ⓥ", sn.ecd, C.ecd], ["FG OH", sn.fg_oh, C.fg], ["FG bit", sn.fg_bit, "#B42318"]]
     .filter((x) => x[1] != null) as [string, number, string][];
   const vals = items.map((x) => x[1]);
   const lo = vals.length ? Math.floor(Math.min(...vals) - 0.5) : 8, hi = vals.length ? Math.ceil(Math.max(...vals) + 0.5) : 14;
   const option = {
     animation: false, grid: { left: 90, right: 16, top: 6, bottom: 24 },
-    xAxis: { type: "value", min: lo, max: hi, axisLabel: { color: "#9AA5B1", fontSize: 10 }, splitLine: { lineStyle: { color: "#1E262E" } } },
-    yAxis: { type: "category", data: items.map((x) => x[0]), axisLabel: { color: "#C5CDD6", fontSize: 11 }, axisLine: { lineStyle: { color: "#2A323C" } } },
+    xAxis: { type: "value", min: lo, max: hi, axisLabel: { color: "#5B6775", fontSize: 10 }, splitLine: { lineStyle: { color: "#EEF1F5" } } },
+    yAxis: { type: "category", data: items.map((x) => x[0]), axisLabel: { color: "#3A4552", fontSize: 11 }, axisLine: { lineStyle: { color: "#D5DCE4" } } },
     series: [{ type: "scatter", symbolSize: 12, data: items.map((x) => ({ value: [x[1], x[0]], itemStyle: { color: x[2] } })),
-      label: { show: true, position: "right", color: "#E6EAEF", formatter: (p: any) => p.value[0].toFixed(2) } },
+      label: { show: true, position: "right", color: "#1B2430", formatter: (p: any) => p.value[0].toFixed(2) } },
       ...(sn.ecd_lo != null ? [{ type: "line", data: [[sn.ecd_lo, items.find((x) => x[0].startsWith("ECD"))?.[0]], [sn.ecd_hi, items.find((x) => x[0].startsWith("ECD"))?.[0]]], lineStyle: { color: C.ecd, width: 6, opacity: 0.35 }, symbol: "none" }] : [])],
   };
   return (

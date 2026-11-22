@@ -4,7 +4,7 @@ import { useApp, useFetch } from "../lib/ctx";
 import { dateOnly, n, wib } from "../lib/fmt";
 import { EChart, Err, Kpi } from "../components/ui";
 
-const ST: Record<string, string> = { production: "#4CC38A", shadow: "#7DB4FF", candidate: "#E8C547", training: "#FF9F43", archived: "#8A96A3", failed: "#F2555A" };
+const ST: Record<string, string> = { production: "#1E9E5A", shadow: "#2F6FD1", candidate: "#B98900", training: "#E8710A", archived: "#7A8694", failed: "#D63A40" };
 const M = (m: any, k: string, d = 3) => (m && m[k] != null ? n(m[k], d) : "—");
 
 export default function ModelML() {
@@ -40,7 +40,7 @@ export default function ModelML() {
         </div>
         <div className="card">
           <h3>Training baru</h3>
-          <div className="small">Train: {train.join(", ") || <span style={{ color: "#F59E4B" }}>belum ada sumur peran train</span>}</div>
+          <div className="small">Train: {train.join(", ") || <span style={{ color: "#E07A10" }}>belum ada sumur peran train</span>}</div>
           <div className="small" style={{ marginBottom: 8 }}>Blind: {blind.join(", ") || <span className="muted">tidak ada (hanya LOWO)</span>}</div>
           <div className="row">
             <select value={algo} onChange={(e) => setAlgo(e.target.value)}>
@@ -57,7 +57,7 @@ export default function ModelML() {
         <table>
           <thead><tr><th>Nama</th><th>Status</th><th>Train</th><th>Blind</th><th>Gate</th><th>Dibuat</th></tr></thead>
           <tbody>{list.data?.map((r) => (
-            <tr key={r.id} className="click" onClick={() => setSel(r.id)} style={{ background: r.id === sel ? "#1A222A" : undefined }}>
+            <tr key={r.id} className="click" onClick={() => setSel(r.id)} style={{ background: r.id === sel ? "#EAF1FA" : undefined }}>
               <td className="mono">{r.name}</td><td style={{ color: ST[r.status] }}>{r.status}</td><td className="small">{(r.train_wells || []).join(", ")}</td><td className="small">{(r.blind_wells || []).join(", ") || "—"}</td>
               <td className="mono">{Object.values(r.gates).filter(Boolean).length}/6</td><td className="small muted">{wib(r.created_at, true)} · {r.created_by}</td>
             </tr>
@@ -106,7 +106,7 @@ export default function ModelML() {
             <div className="card">
               <h3>Promotion gate</h3>
               {Object.entries(m.gate_labels).map(([k, l]: [string, any]) => (
-                <label key={k} className="row" style={{ padding: "5px 0", borderTop: "1px solid #222B34" }}>
+                <label key={k} className="row" style={{ padding: "5px 0", borderTop: "1px solid #E3E8EE" }}>
                   <input type="checkbox" checked={!!m.gates[k]} disabled={!can("model_gate")} onChange={(e) => act(() => api.post(`/models/${m.id}/gate`, { gate: k, value: e.target.checked }))} />
                   <span>{l}</span>
                 </label>
@@ -115,8 +115,8 @@ export default function ModelML() {
             </div>
             {imp.length > 0 && (
               <div className="card"><h3>Feature importance</h3>
-                <EChart height={Math.max(160, imp.length * 22)} option={{ animation: false, grid: { left: 90, right: 20, top: 4, bottom: 20 }, xAxis: { type: "value", axisLabel: { color: "#9AA5B1" }, splitLine: { lineStyle: { color: "#1E262E" } } },
-                  yAxis: { type: "category", inverse: true, data: imp.map((x) => x[0]), axisLabel: { color: "#C5CDD6" } }, series: [{ type: "bar", data: imp.map((x) => x[1]), itemStyle: { color: "#7DB4FF" } }] }} />
+                <EChart height={Math.max(160, imp.length * 22)} option={{ animation: false, grid: { left: 90, right: 20, top: 4, bottom: 20 }, xAxis: { type: "value", axisLabel: { color: "#5B6775" }, splitLine: { lineStyle: { color: "#EEF1F5" } } },
+                  yAxis: { type: "category", inverse: true, data: imp.map((x) => x[0]), axisLabel: { color: "#3A4552" } }, series: [{ type: "bar", data: imp.map((x) => x[1]), itemStyle: { color: "#2F6FD1" } }] }} />
               </div>
             )}
             <div className="card"><h3>Log</h3><pre className="small mono" style={{ whiteSpace: "pre-wrap", margin: 0, maxHeight: 260, overflow: "auto" }}>{m.log || "—"}</pre></div>

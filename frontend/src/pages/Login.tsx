@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useApp } from "../lib/ctx";
 import { Err } from "../components/ui";
+import { DrillingScene, RigIcon } from "../components/DrillingScene";
 
 export default function Login() {
   const [u, setU] = useState(""); const [p, setP] = useState("");
@@ -18,17 +19,28 @@ export default function Login() {
   };
   return (
     <div className="login">
-      <form className="card" onSubmit={submit}>
-        <div className="row">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FF9F43" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 17a8 8 0 1 1 16 0" /><path d="M12 17l4-6" /><circle cx="12" cy="17" r="1.5" /></svg>
-          <div><b style={{ fontSize: 18 }}>ECD Monitor</b><div className="muted small">PHR Drilling · Nowcast ECD berbasis ML</div></div>
+      <section className="hero" aria-label="Ilustrasi pengeboran sumur">
+        <DrillingScene />
+        <div className="tag">
+          <h2>Pantau ECD di setiap meter pengeboran</h2>
+          <p>Nowcast ECD dari parameter permukaan, margin terhadap jendela tekanan PP/SFG–FG, dan indikasi dini masalah lubang.</p>
         </div>
-        <label className="f">Username<input value={u} onChange={(e) => setU(e.target.value)} autoFocus autoComplete="username" /></label>
-        <label className="f">Password<input type="password" value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" /></label>
-        <Err e={err} />
-        <button className="pri" disabled={busy || !u || !p}>{busy ? "Masuk…" : "Masuk"}</button>
-        <div className="note">Akun lokal. Hubungi admin Data/ML untuk membuat akun atau reset password. Integrasi SSO PHR menyusul.</div>
-      </form>
+      </section>
+      <div className="side">
+        <form className="card" onSubmit={submit}>
+          <div className="row" style={{ gap: 12 }}>
+            <RigIcon size={36} />
+            <div><b style={{ fontSize: 19 }}>ECD Monitor</b><div className="muted small">PHR Drilling · Nowcast ECD berbasis ML</div></div>
+          </div>
+          <div className="muted small" style={{ marginTop: -2 }}>Masuk untuk melanjutkan</div>
+          <label className="f">Username<input value={u} onChange={(e) => setU(e.target.value)} autoFocus autoComplete="username" /></label>
+          <label className="f">Password<input type="password" value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" /></label>
+          <Err e={err} />
+          <button className="pri" disabled={busy || !u || !p}>{busy ? "Masuk…" : "Masuk"}</button>
+          <div className="note">Akun lokal. Hubungi admin Data/ML untuk membuat akun atau reset password. Integrasi SSO PHR menyusul.</div>
+          <div className="foot">Alat bantu keputusan · setiap alert wajib diverifikasi engineer</div>
+        </form>
+      </div>
     </div>
   );
 }

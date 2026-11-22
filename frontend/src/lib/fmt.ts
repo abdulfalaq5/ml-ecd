@@ -30,14 +30,14 @@ export function ago(min?: number | null) {
 }
 
 export const LEVEL_COLOR: Record<string, string> = {
-  NORMAL: "#4CC38A", ADVISORY: "#E8C547", WARNING: "#F59E4B", CRITICAL: "#F2555A", UNAVAILABLE: "#8A96A3",
-  STUCK: "#F2555A", NOISE: "#8A96A3",
+  NORMAL: "#1E9E5A", ADVISORY: "#B98900", WARNING: "#E07A10", CRITICAL: "#D63A40", UNAVAILABLE: "#7A8694",
+  STUCK: "#D63A40", NOISE: "#7A8694",
 };
 export const C = {
-  ecd: "#FF9F43", fg: "#F2555A", sfg: "#E8C547", mw: "#7DB4FF", pp: "#B48CF2",
-  text: "#E6EAEF", muted: "#9AA5B1", grid: "#222B34", panel: "#171D24",
-  hook: "#4CC38A", torque: "#FF6B9A", flow: "#7DB4FF", spp: "#F59E4B", fo: "#5FD3E0", pit: "#B48CF2",
-  rpm: "#C5CDD6", wob: "#A3E635", rop: "#FACC15", depth: "#9AA5B1",
+  ecd: "#E8710A", fg: "#D63A40", sfg: "#B98900", mw: "#2F6FD1", pp: "#7C4DD8",
+  text: "#1B2430", muted: "#5B6775", grid: "#E3E8EE", panel: "#FFFFFF",
+  hook: "#1E9E5A", torque: "#D63A7A", flow: "#2F6FD1", spp: "#E07A10", fo: "#0E9AAE", pit: "#7C4DD8",
+  rpm: "#3A4552", wob: "#5E9E0B", rop: "#A88400", depth: "#5B6775",
 };
 export const STATE_LABEL: Record<string, string> = {
   DRILL_ROT: "DRILLING ROTARY", SLIDE: "SLIDING", REAM: "REAMING", WASH: "WASHING", CIRC: "SIRKULASI",

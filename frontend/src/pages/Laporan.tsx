@@ -41,7 +41,7 @@ export default function Laporan() {
           <div className="card">
             <h3>Arsip</h3>
             <table><tbody>{list.data?.items.map((r: any) => (
-              <tr key={r.id} className="click" onClick={() => open(r.id)} style={{ background: sel?.id === r.id ? "#1A222A" : undefined }}>
+              <tr key={r.id} className="click" onClick={() => open(r.id)} style={{ background: sel?.id === r.id ? "#EAF1FA" : undefined }}>
                 <td>{r.title}<div className="muted small">{r.period_start ? `${wib(r.period_start, true)} → ${wib(r.period_end, true)}` : "periode default"}</div></td>
                 <td className="small muted">{wib(r.created_at, true)}<br />{r.created_by}</td>
               </tr>
@@ -58,7 +58,7 @@ export default function Laporan() {
             <div className="muted small" style={{ margin: "6px 0 12px" }}>{s.period?.[0] ? `${wib(s.period[0], true)} → ${wib(s.period[1], true)}` : "periode default"} · dibuat {sel.created_by} {wib(sel.created_at, true)}</div>
             {(sel.kind === "daily" || sel.kind === "event") && (<>
               <div className="kpis">
-                <Kpi l={`ECD rata-rata (${s.ecd_source || "—"})`} v={n(s.ecd_mean)} s={`maks ${n(s.ecd_max)} ppg`} color="#FF9F43" />
+                <Kpi l={`ECD rata-rata (${s.ecd_source || "—"})`} v={n(s.ecd_mean)} s={`maks ${n(s.ecd_max)} ppg`} color="#E8710A" />
                 <Kpi l="Margin atas min" v={n(s.margin_up_min)} /><Kpi l="Margin bawah min" v={n(s.margin_low_min)} />
                 <Kpi l="Durasi data" v={`${s.data_minutes ?? 0} mnt`} s={s.model || "tanpa model"} />
               </div>

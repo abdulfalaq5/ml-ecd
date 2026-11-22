@@ -15,7 +15,7 @@ export default function Overview() {
       {data && data.length === 0 && <div className="card empty">Belum ada sumur. Upload data di halaman <a href="/data">Data &amp; Upload</a> atau taruh file di folder inbox.</div>}
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
         {data?.map((w) => (
-          <div key={w.id} className="card" style={{ cursor: "pointer", borderColor: w.level === "CRITICAL" ? "#6B2A2D" : undefined }} onClick={() => { setWellId(w.id); nav("/monitor"); }}>
+          <div key={w.id} className="card" style={{ cursor: "pointer", borderColor: w.level === "CRITICAL" ? "#F3C2C5" : undefined }} onClick={() => { setWellId(w.id); nav("/monitor"); }}>
             <div className="row"><b>{w.name}</b><span className="chip">{w.role}</span><span className="sp" /><Level v={w.level} /></div>
             <div className="muted small" style={{ margin: "4px 0 8px" }}>{w.section || "section ?"} · {w.state ? STATE_LABEL[w.state] || w.state : "—"} · bit {ft(w.bit_depth)} ft</div>
             <div className="row" style={{ gap: 18 }}>

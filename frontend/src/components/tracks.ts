@@ -21,8 +21,8 @@ export const CHANNELS: Record<string, Ch> = {
   mw: { key: "mw", name: "MW", unit: "ppg", color: C.mw },
   flow_out_pct: { key: "flow_out_pct", name: "Flow Out", unit: "%", color: C.fo, min: 0, max: 100 },
   active_pit: { key: "active_pit", name: "Active Pit", unit: "bbl", color: C.pit },
-  gain_loss: { key: "gain_loss", name: "Gain/Loss", unit: "bbl", color: "#F8A5A8" },
-  risk: { key: "risk", name: "Skor risiko", unit: "0–1", color: "#F2555A", min: 0, max: 1 },
+  gain_loss: { key: "gain_loss", name: "Gain/Loss", unit: "bbl", color: "#B42318" },
+  risk: { key: "risk", name: "Skor risiko", unit: "0–1", color: "#D63A40", min: 0, max: 1 },
 };
 
 export const PRESETS: Record<string, string[][]> = {
@@ -46,7 +46,7 @@ export function buildTracks(s: Record<string, any[]>, tracks: Track[], o: Opt = 
     const size = (100 - pad * 2 - gap * (n - 1)) / n;
     const start = pad + i * (size + gap);
     grid.push(V ? { left: `${start}%`, width: `${size}%`, top: 54, bottom: 28 } : { left: 64, right: 64, top: `${start + 3}%`, height: `${size - 3}%` });
-    const timeAx = { type: "time", gridIndex: i, ...AX, axisLabel: { ...AX.axisLabel, show: V ? i === 0 : i === n - 1, formatter: (v: number) => wib(new Date(v).toISOString()) }, splitLine: { show: true, lineStyle: { color: "#1A2128" } }, inverse: V, min: "dataMin", max: "dataMax" };
+    const timeAx = { type: "time", gridIndex: i, ...AX, axisLabel: { ...AX.axisLabel, show: V ? i === 0 : i === n - 1, formatter: (v: number) => wib(new Date(v).toISOString()) }, splitLine: { show: true, lineStyle: { color: "#F4F6F9" } }, inverse: V, min: "dataMin", max: "dataMax" };
     const chs = tr.ch.filter((c) => !o.hidden?.[c.key] && s[c.key]);
     const ppgTrack = tr.ch.some((c) => c.unit === "ppg");
     const axes = ppgTrack ? [{ min: o.ppgRange?.[0] ?? 8, max: o.ppgRange?.[1] ?? 16, name: "ppg", key: "__ppg" }] :
@@ -57,8 +57,8 @@ export function buildTracks(s: Record<string, any[]>, tracks: Track[], o: Opt = 
     const valueAxes = (axes.length ? axes : [{ name: tr.title, key: "_" }]).map((a: any, j: number) => {
       const ax = { type: "value", gridIndex: i, ...AX, min: a.min, max: a.max, scale: a.min === undefined, name: a.name,
         nameLocation: "middle", nameGap: V ? 18 : 44, position: V ? (j === 0 ? "top" : "bottom") : (j === 0 ? "left" : "right"),
-        nameTextStyle: { color: a.color || "#9AA5B1", fontSize: 11 }, axisLabel: { ...AX.axisLabel, color: a.color || "#9AA5B1", fontSize: 10 },
-        splitLine: { show: j === 0, lineStyle: { color: "#1E262E" } }, inverse: false };
+        nameTextStyle: { color: a.color || "#5B6775", fontSize: 11 }, axisLabel: { ...AX.axisLabel, color: a.color || "#5B6775", fontSize: 10 },
+        splitLine: { show: j === 0, lineStyle: { color: "#EEF1F5" } }, inverse: false };
       return ax;
     });
     const base = (V ? xAxis : yAxis).length;
@@ -76,17 +76,17 @@ export function buildTracks(s: Record<string, any[]>, tracks: Track[], o: Opt = 
       series.push({ type: "line", name: `${c.name}`, data: pts, ...axisRef, showSymbol: false, sampling: "lttb", connectNulls: false,
         lineStyle: { color: c.color, width: c.key === "ecd" || c.key === "ecd_pred" ? 2 : 1.4, type: c.dash ? "dashed" : "solid" }, itemStyle: { color: c.color },
         markArea: i === 0 && o.marks?.length ? { silent: true, data: o.marks.filter((m) => m.t1).map((m) => V ? [{ yAxis: m.t0, itemStyle: { color: (LEVEL_COLOR[m.level] || "#888") + "22" } }, { yAxis: m.t1 }] : [{ xAxis: m.t0, itemStyle: { color: (LEVEL_COLOR[m.level] || "#888") + "22" } }, { xAxis: m.t1 }]) } : undefined,
-        markLine: o.cutoff ? { symbol: "none", silent: true, lineStyle: { color: "#FFFFFF", type: "solid", width: 1.5 }, label: { show: i === 0, formatter: "cut-off", color: "#fff" }, data: [V ? { yAxis: o.cutoff } : { xAxis: o.cutoff }] } : undefined,
+        markLine: o.cutoff ? { symbol: "none", silent: true, lineStyle: { color: "#1B2430", type: "solid", width: 1.5 }, label: { show: i === 0, formatter: "cut-off", color: "#1B2430" }, data: [V ? { yAxis: o.cutoff } : { xAxis: o.cutoff }] } : undefined,
       });
       if (o.after?.[c.key]) {
         const at = o.after.t || [];
-        series.push({ type: "line", name: c.name + " (setelah cut-off)", data: at.map((tt: string, k: number) => V ? [o.after![c.key][k], tt] : [tt, o.after![c.key][k]]), ...axisRef, showSymbol: false, lineStyle: { color: "#5A6672", width: 1.2 }, itemStyle: { color: "#5A6672" } });
+        series.push({ type: "line", name: c.name + " (setelah cut-off)", data: at.map((tt: string, k: number) => V ? [o.after![c.key][k], tt] : [tt, o.after![c.key][k]]), ...axisRef, showSymbol: false, lineStyle: { color: "#9AA5B1", width: 1.2 }, itemStyle: { color: "#9AA5B1" } });
       }
     });
     // judul track
     grid[i].title = tr.title;
   });
-  const titles = grid.map((g, i) => ({ text: tracks[i].title, textStyle: { color: "#9AA5B1", fontSize: 11, fontWeight: 500 },
+  const titles = grid.map((g, i) => ({ text: tracks[i].title, textStyle: { color: "#5B6775", fontSize: 11, fontWeight: 500 },
     ...(V ? { left: g.left, top: 0 } : { left: "center", top: `${parseFloat(g.top) - 2.6}%` }) }));
   return {
     backgroundColor: "transparent", animation: false, title: titles, grid: grid.map(({ title, ...g }) => g), xAxis, yAxis, series,

@@ -22,14 +22,14 @@ function SettingCard({ k, title }: { k: string; title: string }) {
   const d = s.data;
   return (
     <div className="card">
-      <div className="row"><h3 style={{ margin: 0 }}>{title}</h3><span className="sp" /><span className="chip" style={{ color: d?.status === "pending" ? "#E8C547" : "#4CC38A" }}>{d?.status === "pending" ? "menunggu persetujuan" : "aktif"}</span></div>
+      <div className="row"><h3 style={{ margin: 0 }}>{title}</h3><span className="sp" /><span className="chip" style={{ color: d?.status === "pending" ? "#B98900" : "#1E9E5A" }}>{d?.status === "pending" ? "menunggu persetujuan" : "aktif"}</span></div>
       <Err e={msg} />
       <table style={{ marginTop: 8 }}>
         <thead><tr><th>Parameter</th><th>Aktif</th><th>Default</th>{d?.proposed && <th>Diajukan</th>}</tr></thead>
         <tbody>{d && Object.keys(d.defaults).map((key) => (
           <tr key={key}><td className="small">{LABELS[key] || key}</td>
             <td><input type="number" step="any" style={{ width: 100 }} value={v[key] ?? ""} disabled={!can("threshold_propose")} onChange={(e) => setV({ ...v, [key]: e.target.value })} /></td>
-            <td className="mono muted">{d.defaults[key]}</td>{d.proposed && <td className="mono" style={{ color: "#E8C547" }}>{d.proposed[key]}</td>}</tr>
+            <td className="mono muted">{d.defaults[key]}</td>{d.proposed && <td className="mono" style={{ color: "#B98900" }}>{d.proposed[key]}</td>}</tr>
         ))}</tbody>
       </table>
       <div className="row" style={{ marginTop: 8 }}>

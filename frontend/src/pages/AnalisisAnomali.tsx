@@ -50,7 +50,7 @@ export default function AnalisisAnomali() {
           {loading && <span className="muted small">menghitung…</span>}
         </div>
         <p className="note">Mode cut-off: engine hanya melihat data ≤ cut-off (tanpa look-ahead). Data setelah cut-off ditampilkan abu-abu untuk verifikasi. Pilih cut-off sebelum event untuk menguji lead time.</p>
-        {data && !data.empty && <div className="small muted">Data sumur: {wib(data.data_start, true)} → {wib(data.data_end, true)} · ECD terukur {data.ecd_measured_available ? "tersedia" : <b style={{ color: "#FF9F43" }}>tidak ada — hanya ECD ⓥ (estimasi)</b>}</div>}
+        {data && !data.empty && <div className="small muted">Data sumur: {wib(data.data_start, true)} → {wib(data.data_end, true)} · ECD terukur {data.ecd_measured_available ? "tersedia" : <b style={{ color: "#E8710A" }}>tidak ada — hanya ECD ⓥ (estimasi)</b>}</div>}
       </div>
       {data?.empty && <div className="card empty">Belum ada data.</div>}
       {option && (
@@ -60,7 +60,7 @@ export default function AnalisisAnomali() {
             <div className="card">
               <h3>Lonjakan ECD ⓥ</h3>
               {ecdv.length === 0 ? <div className="muted small">Tidak ada kenaikan mendadak ECD ⓥ pada jendela ini.</div> : ecdv.map((d: any, i: number) => (
-                <div key={i} className="small" style={{ borderTop: "1px solid #222B34", padding: "6px 0" }}>
+                <div key={i} className="small" style={{ borderTop: "1px solid #E3E8EE", padding: "6px 0" }}>
                   <Level v={d.level} /> <span className="mono">{wib(d.start)}–{wib(d.end)}</span> · +{n(d.value)} ppg dari {n(d.baseline)} · {d.state}{d.md ? ` @${ft(d.md)} ft` : ""}
                 </div>
               ))}
@@ -70,7 +70,7 @@ export default function AnalisisAnomali() {
               <h3>Indikator terdeteksi ({data.detections.length})</h3>
               <div style={{ maxHeight: 300, overflow: "auto" }}>
                 {data.detections.map((d: any, i: number) => (
-                  <div key={i} className="small" style={{ borderTop: "1px solid #222B34", padding: "6px 0" }}>
+                  <div key={i} className="small" style={{ borderTop: "1px solid #E3E8EE", padding: "6px 0" }}>
                     <div className="row"><Level v={d.level} /><span className="mono">{wib(d.start)}</span><span className="muted">{d.state}</span></div>
                     <div>{d.label}{d.md ? ` @${ft(d.md)} ft` : ""}</div>{d.rec && <div className="muted">Verifikasi: {d.rec}</div>}
                   </div>
@@ -81,7 +81,7 @@ export default function AnalisisAnomali() {
               <h3>Event terkonfirmasi & lead time</h3>
               {data.lead_times.length === 0 && <div className="muted small">Belum ada event Dikonfirmasi di sumur ini (Riwayat Event).</div>}
               {data.lead_times.map((l: any, i: number) => (
-                <div key={i} className="small" style={{ borderTop: "1px solid #222B34", padding: "6px 0" }}>
+                <div key={i} className="small" style={{ borderTop: "1px solid #E3E8EE", padding: "6px 0" }}>
                   <b>{l.event}</b> · {wib(l.onset, true)}<br />
                   Indikasi pertama: {l.first ? `${wib(l.first)} (${l.first_lead_min} mnt sebelum)` : "—"}<br />
                   WARNING pertama: {l.warning ? `${wib(l.warning)} (${l.warning_lead_min} mnt sebelum)` : "—"}

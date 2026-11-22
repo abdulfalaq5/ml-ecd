@@ -3,6 +3,7 @@ import * as echarts from "echarts";
 import { NavLink } from "react-router-dom";
 import { useApp } from "../lib/ctx";
 import { LEVEL_COLOR } from "../lib/fmt";
+import { RigIcon } from "./DrillingScene";
 
 const CORE = [["1", "Live Monitor", "/monitor"], ["2", "Profil Depth", "/profil"], ["3", "Riwayat Event", "/event"],
   ["4", "Data & Upload", "/data"], ["5", "Formasi & FG", "/formasi"], ["6", "Model ML", "/model"]];
@@ -19,7 +20,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="app">
       <nav className="nav" aria-label="Navigasi utama">
         <div className="brand">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF9F43" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 17a8 8 0 1 1 16 0" /><path d="M12 17l4-6" /><circle cx="12" cy="17" r="1.5" /></svg>
+          <RigIcon size={30} />
           <div><b>ECD Monitor</b><small>PHR Drilling · RTO</small></div>
         </div>
         <span className="sec">DASHBOARD INTI</span>
@@ -38,7 +39,7 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 export function Level({ v, big }: { v?: string | null; big?: boolean }) {
-  const c = LEVEL_COLOR[v || "UNAVAILABLE"] || "#8A96A3";
+  const c = LEVEL_COLOR[v || "UNAVAILABLE"] || "#7A8694";
   return <span className="lvl" style={{ background: c + "22", color: c, border: `1px solid ${c}55`, fontSize: big ? 16 : undefined, padding: big ? "4px 12px" : undefined }}>{v || "UNAVAILABLE"}</span>;
 }
 
@@ -77,8 +78,8 @@ export function EChart({ option, height = 300, onReady, notMerge = true }: { opt
 }
 
 export const AX = {
-  axisLine: { lineStyle: { color: "#2A323C" } }, axisTick: { lineStyle: { color: "#2A323C" } },
-  axisLabel: { color: "#9AA5B1", fontSize: 11 }, splitLine: { lineStyle: { color: "#1E262E" } },
-  nameTextStyle: { color: "#9AA5B1", fontSize: 11 },
+  axisLine: { lineStyle: { color: "#D5DCE4" } }, axisTick: { lineStyle: { color: "#D5DCE4" } },
+  axisLabel: { color: "#5B6775", fontSize: 11 }, splitLine: { lineStyle: { color: "#EEF1F5" } },
+  nameTextStyle: { color: "#5B6775", fontSize: 11 },
 };
-export const TIP = { trigger: "axis", backgroundColor: "#1C232B", borderColor: "#2A323C", textStyle: { color: "#E6EAEF", fontSize: 12 }, axisPointer: { type: "cross", lineStyle: { color: "#5A6672" } } };
+export const TIP = { trigger: "axis", backgroundColor: "#FFFFFF", borderColor: "#D5DCE4", textStyle: { color: "#1B2430", fontSize: 12 }, axisPointer: { type: "cross", lineStyle: { color: "#9AA5B1" } } };
