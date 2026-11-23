@@ -67,6 +67,7 @@ export default function DataUpload() {
               <button className="pri" onClick={saveWell}>Simpan</button><button onClick={() => setEdit(null)}>Batal</button>
             </div>
           )}
+          <SectionsCard wellId={wellId!} canEdit={can("well_edit")} onSaved={reloadWells} />
           <p className="note">Peran: <b>train</b> ikut training (LOWO) · <b>blind</b> sumur uji tetap, tidak pernah ikut training · <b>case</b> studi kasus (mis. PDSI 53.2) · <b>shadow</b> sumur berjalan, alert UNAVAILABLE bila data &gt; 10 mnt.</p>
         </div>
       )}
@@ -138,5 +139,77 @@ export default function DataUpload() {
         </div>
       )}
     </>
+  );
+}
+
+type Sec = { from_md: string; hole_size: string; shoe_md: string; casing_id: string; preset: string; pv: string; yp: string; note: string };
+const SEC_KEYS: (keyof Sec)[] = ["from_md", "hole_size", "shoe_md", "casing_id", "preset", "pv", "yp", "note"];
+const toSec = (r: any): Sec => Object.fromEntries(SEC_KEYS.map((k) => [k, r[k] == null ? "" : String(r[k])])) as Sec;
+const HOLES = ["26", "17.5", "12.25", "8.5", "6.125"];
+
+/** Data section depth-based (seperti MW Rec 04): dipakai Ramalan ECD (hidraulika, cutting) dan nanti estimasi bending. */
+function SectionsCard({ wellId, canEdit, onSaved }: { wellId: number; canEdit: boolean; onSaved: () => void }) {
+  const q = useFetch<any>(() => api.get(`/wells/${wellId}/sections`), [wellId]);
+  const [rows, setRows] = useState<Sec[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+  const cur: Sec[] = rows ?? (q.data?.sections || []).map(toSec);
+  const editing = rows !== null;
+  const set = (i: number, k: keyof Sec, v: string) => setRows(cur.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  const save = async () => {
+    setErr(null);
+    const body = cur.filter((r) => r.from_md !== "" || r.hole_size !== "").map((r) => Object.fromEntries(SEC_KEYS.map((k) => [k, k === "preset" || k === "note" ? r[k] || null : r[k] === "" ? null : Number(r[k])])));
+    try { await api.put(`/wells/${wellId}/sections`, { sections: body }); setRows(null); setOk(true); q.reload(); onSaved(); setTimeout(() => setOk(false), 2500); }
+    catch (e: any) { setErr(e.message); }
+  };
+  const presets: any[] = q.data?.presets || [];
+  const cid = q.data?.casing_id_default || {};
+  return (
+    <div style={{ marginTop: 12, borderTop: "1px solid #E3E8EE", paddingTop: 10 }}>
+      <div className="row">
+        <b className="small">Section & lubang</b>
+        <span className="small muted">berlaku sejak hole depth tercapai (seperti MW Rec 04) · dipakai Ramalan ECD (hidraulika) dan nanti estimasi bending</span>
+        <span className="sp" />
+        {ok && <span className="small" style={{ color: "#1E9E5A" }}>tersimpan</span>}
+        {canEdit && !editing && <button onClick={() => setRows(cur.length ? cur : [toSec({ from_md: 0 })])}>{cur.length ? "Ubah section" : "+ Isi section"}</button>}
+      </div>
+      <Err e={err || q.err} />
+      {cur.length === 0 && !editing ? <div className="small muted" style={{ marginTop: 6 }}>Belum ada data section. Tanpa ini, Ramalan ECD memakai ukuran lubang 8-1/2" dan respons flow sementara.</div> : (
+        <div style={{ overflowX: "auto", marginTop: 6 }}>
+          <table className="plan">
+            <thead><tr><th>Mulai hole depth (ft)</th><th>Lubang (in)</th><th>Shoe casing MD (ft)</th><th>ID casing (in)</th><th>String (katalog)</th><th>PV (cP)</th><th>YP (lbf/100ft²)</th><th>Sumber / catatan</th>{editing && <th />}</tr></thead>
+            <tbody>
+              {cur.map((r, i) => editing ? (
+                <tr key={i}>
+                  <td><input type="number" value={r.from_md} onChange={(e) => set(i, "from_md", e.target.value)} style={{ width: 90 }} /></td>
+                  <td><input list="holes" value={r.hole_size} onChange={(e) => set(i, "hole_size", e.target.value)} style={{ width: 70 }} /></td>
+                  <td><input type="number" value={r.shoe_md} onChange={(e) => set(i, "shoe_md", e.target.value)} style={{ width: 90 }} /></td>
+                  <td><input type="number" step="any" value={r.casing_id} placeholder={cid[r.hole_size] ? `otomatis ${cid[r.hole_size]}` : "otomatis"} onChange={(e) => set(i, "casing_id", e.target.value)} style={{ width: 100 }} /></td>
+                  <td><select value={r.preset} onChange={(e) => set(i, "preset", e.target.value)}><option value="">otomatis per ukuran lubang</option>{presets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
+                  <td><input type="number" step="any" value={r.pv} onChange={(e) => set(i, "pv", e.target.value)} style={{ width: 60 }} /></td>
+                  <td><input type="number" step="any" value={r.yp} onChange={(e) => set(i, "yp", e.target.value)} style={{ width: 60 }} /></td>
+                  <td><input value={r.note} onChange={(e) => set(i, "note", e.target.value)} placeholder="mis. DDR / mud report" /></td>
+                  <td><button className="danger" onClick={() => setRows(cur.filter((_, j) => j !== i))}>×</button></td>
+                </tr>
+              ) : (
+                <tr key={i}>
+                  <td className="mono">{ft(Number(r.from_md))}</td><td>{r.hole_size}"</td><td className="mono">{r.shoe_md ? ft(Number(r.shoe_md)) : "—"}</td>
+                  <td>{r.casing_id || <span className="muted">otomatis</span>}</td><td>{presets.find((p) => p.id === r.preset)?.name || <span className="muted">otomatis</span>}</td>
+                  <td>{r.pv || "—"}</td><td>{r.yp || "—"}</td><td className="muted">{r.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <datalist id="holes">{HOLES.map((h) => <option key={h} value={h} />)}</datalist>
+        </div>
+      )}
+      {editing && (
+        <div className="row" style={{ marginTop: 8 }}>
+          <button onClick={() => setRows([...cur, toSec({})])}>+ Baris</button>
+          <span className="sp" />
+          <button className="pri" onClick={save}>Simpan section</button><button onClick={() => { setRows(null); setErr(null); }}>Batal</button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .db import SessionLocal, init_db
 from .ingest.watcher import start_background
-from .routers import auth, events, mlmodels, monitor, ppfg, reports, settings, wells
+from .routers import auth, events, forecast, mlmodels, monitor, ppfg, reports, settings, wells
 from .security import bootstrap_admin
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -19,7 +19,7 @@ _origins = [o.strip() for o in _s.cors_origins.split(",") if o.strip()]
 if _origins:
     app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_methods=["*"], allow_headers=["*"])
 
-for r in (auth, wells, monitor, ppfg, events, mlmodels, settings, reports):
+for r in (auth, wells, monitor, forecast, ppfg, events, mlmodels, settings, reports):
     app.include_router(r.router)
 
 

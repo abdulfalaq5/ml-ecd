@@ -47,7 +47,7 @@ function Hl({ text, words }: { text: string; words: string[] }) {
 }
 
 const menuOf = (key?: string) => MENUS.find((m) => m.key === key);
-const SUGGEST = ["seberapa akurat", "syarat realtime", "cek hasil training", "upload file besar", "approve PPFG", "kenapa UNAVAILABLE", "buat laporan", "konfirmasi event", "ganti password", "zona rathole", "cut-off", "bending moment"];
+const SUGGEST = ["seberapa akurat", "syarat realtime", "cek hasil training", "upload file besar", "approve PPFG", "kenapa UNAVAILABLE", "buat laporan", "konfirmasi event", "ganti password", "zona rathole", "cut-off", "bending moment", "ramalan 6 jam"];
 
 /* ---------- komponen tampilan ---------- */
 function Steps({ h, words }: { h: HowTo; words: string[] }) {

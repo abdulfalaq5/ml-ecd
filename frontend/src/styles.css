@@ -114,3 +114,8 @@ mark { background: #FFE8B3; color: inherit; border-radius: 3px; padding: 0 1px; 
 .guide-limit { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel2); }
 .k-wajib { background: #FDE8E9; color: #A3242A; } .k-opsional { background: #EEF1F5; color: #3A4552; }
 .k-Batasan { background: #FDE8E9; color: #A3242A; } .k-Syarat { background: #E8F5EE; color: #146C3E; }
+
+table.plan th { font-size: 12px; font-weight: 600; color: var(--muted); text-align: left; padding: 4px 6px; white-space: nowrap; }
+table.plan td { padding: 3px 6px; }
+table.plan input:disabled { background: var(--panel2); }
+table.plan button.danger { padding: 2px 9px; }

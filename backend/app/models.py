@@ -50,6 +50,8 @@ class Well(Base):
     # zona rathole: open hole di bawah shoe yang tidak ter-cover casing (mis. casing di-set lebih awal)
     # {"top_md": 5354, "base_md": 5651, "since": ISO waktu casing selesai di-set/cement, "note": "..."}
     rathole: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # data section depth-based (core/sections.py): [{from_md, hole_size, shoe_md, casing_id, preset, pv, yp, note}]
+    sections: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

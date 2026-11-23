@@ -43,6 +43,7 @@ export default function LiveMonitor() {
         <h1>Live Monitor</h1>
         <WellSelect />
         <span className="chip">Section {meta?.section || "—"}</span>
+        <Link to="/ramalan" className="chip guide-go" title="Ramalan ECD beberapa jam ke depan dari rencana operasi">Ramal ke depan →</Link>
         <span className="sp" />
         {meta && <span className="muted small">{wib(meta.data_end, true)} · data {ago(meta.fresh_min)}</span>}
         {meta && <span className="chip" style={{ color: (meta.fresh_min ?? 99) <= 10 ? "#1E9E5A" : "#5B6775" }}>{(meta.fresh_min ?? 99) <= 10 ? "LIVE" : "OFFLINE / UPLOAD"}{meta.model ? ` · ${meta.model.status} mode` : ""}</span>}

@@ -39,6 +39,7 @@ Semua komponen berjalan di **Docker**. Server tidak perlu Python, Node, atau Pos
 | **PPFG berversi** | Rec 03 masuk sebagai *draft*. Margin hanya memakai versi yang sudah **approved**; koreksi dibuat sebagai salinan versi baru. |
 | **Zona rathole & studi kasus** | Zona open hole di bawah shoe (mis. casing di-set lebih awal) per sumur: diarsir di Profil Depth, ditandai di Live Monitor, dan setiap indikasi diberi label zona. Halaman Studi Kasus Rathole membagi analisis jadi dua fase: fase 1 menguji ECD ⓥ terhadap ECD terukur, fase 2 memantau tren hidraulik dan indikasi di zona rathole. |
 | **Laporan** | Harian, event/studi kasus, evaluasi model, QC data, studi kasus rathole. Ekspor Excel/cetak. Narasi dibuat otomatis: **dibantu AI bila `ANTHROPIC_API_KEY` diisi**, atau dari templat angka laporan (tanpa AI) bila kosong / AI gagal. Ke AI hanya dikirim ringkasan angka. |
+| **Ramalan ECD (roadmap)** | Ramalan ECD ke depan berbasis rencana operasi, seperti roadmap T&D tetapi berbasis waktu. Model ECD ⓥ / hidraulika annulus power-law (aktif bila PV & YP diisi; string dari katalog bending) dikalibrasi ke ECD terukur 1 jam terakhir, + respons RPM dan WOB → ROP → cutting. Sambung pipa disisipkan dari statistik sumur. Uji mundur 5 sumur: ECD tertinggi 6 / 12 jam meleset median 0,29 / 0,42 ppg (vs 0,35 / 0,50 bila "ECD tetap"). |
 | **Estimasi bending & side force** | Bending moment (E·I·κ dari survey), bending stress vs **batas bending sambungan**, side force per joint, dan hookload model pick-up/slack-off (broomstick, friction factor dikalibrasi ke hookload terukur). Untuk drill string, run casing, dan run liner. Konfigurasi dari **katalog komponen + preset per section**, dipilih per run "mulai hole depth X" seperti MW Rec 04. Saat ini lewat script `tools/bending` (output CSV/LAS per 30 detik); rencana masuk aplikasi ada di [`docs/BENDING_INTEGRATION.md`](docs/BENDING_INTEGRATION.md). **Estimasi, bukan pengukuran sensor downhole.** |
 | **Panduan di aplikasi** | Menu Panduan berisi alur kerja, fungsi setiap menu & tombol (beserta peran yang boleh memakainya), langkah "cara melakukan…", dan istilah, plus **kolom pencarian** berbahasa sehari-hari. |
 | **Akses** | Akun lokal dengan peran (Admin, Drilling Eng, RTO, HSE, Geomechanics, Viewer) dan audit log untuk setiap perubahan. |
@@ -174,8 +175,9 @@ docker compose up -d --build
 | **1 · Live Monitor** | Track multi-kanal (horizontal / log format), ECD terukur vs ECD ⓥ + interval, FG & batas bawah, pressure window, alert terbaru + Ack. Mode realtime / picker waktu. Near-realtime: tertinggal sebesar interval ekspor Navita; tampilan realtime tetap di Navita |
 | **2 · Profil Depth** | ECD, PPFG, MW, dan survey terhadap kedalaman, posisi shoe, dan arsir zona rathole |
 | **3 · Riwayat Event** | Label event (stuck, pack-off, loss, …) dengan alur review Draft → Dikonfirmasi |
-| **4 · Data & Upload** | Tambah sumur, upload file, hasil QC per file, kelengkapan record, edit sumur (section, shoe MD, peran, zona rathole), QC sign-off |
+| **4 · Data & Upload** | Tambah sumur, upload file, hasil QC per file, kelengkapan record, edit sumur (section, shoe MD, peran, zona rathole), **data section depth-based** (lubang, casing, string katalog, PV/YP; dipakai Ramalan ECD), QC sign-off |
 | **5 · Formasi & FG** | Versi PPFG (Rec 03): lihat, koreksi (salinan), **approve** oleh Geomechanics; aturan MW |
+| **7 · Ramalan ECD** | Ramalan ECD beberapa jam ke depan (mis. 6–12 jam) dari **rencana operasi** (segmen bor / sirkulasi / pompa mati: target MD, jam, flow, RPM, WOB, ROP, MW), dengan sambung pipa (tekanan statis saat pompa mati), margin ke FG/PP, dan alert pertama. Tombol coba-coba flow / RPM / WOB / MW. Jam mulai di masa lalu = **mode uji coba**: data sesudahnya disembunyikan, lalu "Buka data asli" untuk membandingkan |
 | **6 · Model ML** | Dataset per sumur, mulai training, perbandingan eksperimen, LOWO per sumur, metrik per state/clean-out, feature importance, promotion gate, status model |
 | **A · Analisis Anomali** | Rentang waktu + **cut-off**: deteksi yang terlihat sampai T, data sesudah T (abu-abu), lead time vs event terkonfirmasi |
 | **K · Studi Kasus Rathole** | Untuk sumur yang punya zona rathole. **Fase 1** menguji ECD ⓥ terhadap ECD terukur (MAE, bias, % masuk interval). **Fase 2** menampilkan per hari: jam pompa di rathole, SPP per 100 gpm, torque, ECD ⓥ, dan indikasi per zona. Dilengkapi timeline event, catatan interpretasi, dan tombol *Buat laporan (Excel)* |
@@ -400,6 +402,9 @@ backend/                 FastAPI + ML
   app/ingest/            parser LAS/CSV, mapping kanal (mnemonics.yaml), QC, watcher
   app/core/              data loader, operating state & fitur, margin, alert, analisis, studi kasus rathole,
                          bending.py (estimasi bending / side force / hookload model, dipakai tools/bending)
+                         forecast.py (ramalan ECD berbasis rencana: sambung pipa, respons flow/RPM/WOB, margin, uji mundur)
+                         hydraulics.py (rugi gesek annulus power-law dari PV/YP + geometri string katalog + tool joint)
+                         sections.py (data section per sumur depth-based: lubang, casing, string, PV/YP)
   app/bending_catalog.json  katalog komponen string + preset per section (nominal API, menunggu konfirmasi klien)
   app/ml/pipeline.py     dataset, training A–D, LOWO/blind, inferensi
   app/anomaly/           detektor anomali

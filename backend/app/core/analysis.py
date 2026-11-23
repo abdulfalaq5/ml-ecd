@@ -75,7 +75,7 @@ def compute(db: Session, well: Well, t0: datetime | None = None, t1: datetime | 
     df = load_time(db, well.id, t0 - WARMUP, end, bucket_s=cb)
     if df.empty:
         return {"empty": True, "t0": t0, "t1": t1}
-    df = add_features(df, load_mw(db, well.id), load_survey(db, well.id))
+    df = add_features(df, load_mw(db, well.id), load_survey(db, well.id), well.sections)
     rec = model or active_model(db)
     df = predict_frame(rec, df)
     ver, ppfg = active_ppfg(db, well.id, ppfg_version)

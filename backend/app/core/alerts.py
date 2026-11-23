@@ -27,6 +27,8 @@ def classify(df: pd.DataFrame, th: dict, detections: list[dict] | None = None) -
     """Kolom level + reason per baris. ECD acuan = terukur bila ada, selain itu ECD ⓥ."""
     out = df.copy()
     ecd = out["ecd"].where(out["ecd"].between(7, 20)) if "ecd" in out else pd.Series(np.nan, index=out.index)
+    if "ecd_stale" in out:                     # nilai beku saat/selepas pompa mati bukan ECD aktual
+        ecd = ecd.where(~out["ecd_stale"].fillna(False).astype(bool))
     out["ecd_ref"] = ecd.fillna(out.get("ecd_pred"))
     m_up = out[["margin_up_bit", "margin_up_oh"]].min(axis=1, skipna=True) if "margin_up_bit" in out else pd.Series(np.nan, index=out.index)
     if "margin_up_bit" in out and "ecd_pred" in out:

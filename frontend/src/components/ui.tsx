@@ -6,7 +6,7 @@ import { LEVEL_COLOR, RATHOLE, ZONE_LABEL } from "../lib/fmt";
 import { RigIcon } from "./DrillingScene";
 
 const CORE = [["1", "Live Monitor", "/monitor"], ["2", "Profil Depth", "/profil"], ["3", "Riwayat Event", "/event"],
-  ["4", "Data & Upload", "/data"], ["5", "Formasi & FG", "/formasi"], ["6", "Model ML", "/model"]];
+  ["4", "Data & Upload", "/data"], ["5", "Formasi & FG", "/formasi"], ["6", "Model ML", "/model"], ["7", "Ramalan ECD", "/ramalan"]];
 const SUP = [["0", "Overview", "/"], ["A", "Analisis Anomali", "/anomali"], ["K", "Studi Kasus Rathole", "/rathole"], ["R", "Laporan", "/laporan"], ["S", "Pengaturan", "/pengaturan"], ["?", "Panduan", "/panduan"]];
 
 export function Layout({ children }: { children: ReactNode }) {

@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from ..core import sections as sec
 from ..core.analysis import compute, f
 from ..db import get_db
 from ..ingest.service import get_or_create_well, ingest_bytes
@@ -27,8 +28,33 @@ def well_out(db: Session, w: Well) -> dict:
     fresh = (datetime.now(timezone.utc) - last).total_seconds() / 60 if last else None
     return {"id": w.id, "name": w.name, "field": w.field, "aliases": w.aliases or [], "section": w.section,
             "shoe_md": w.shoe_md, "role": w.role, "status": w.status, "notes": w.notes, "rathole": w.rathole,
+            "sections": w.sections or [],
             "data_start": r[0].isoformat() if r[0] else None, "data_end": last.isoformat() if last else None,
             "fresh_min": f(fresh, 0), "ecd_points": int(r[2] or 0)}
+
+
+class SectionsIn(BaseModel):
+    sections: list[dict]
+
+
+@router.get("/wells/{wid}/sections")
+def get_sections(wid: int, db: Session = Depends(get_db), _: User = Depends(current_user)):
+    w = db.get(Well, wid) or _404()
+    return {"sections": w.sections or [], "presets": sec.presets_for_ui(), "casing_id_default": sec.casing_id_defaults()}
+
+
+@router.put("/wells/{wid}/sections")
+def put_sections(wid: int, body: SectionsIn, db: Session = Depends(get_db), u: User = Depends(require("well_edit"))):
+    w = db.get(Well, wid) or _404()
+    try:
+        rows = sec.clean_sections(body.sections)
+    except ValueError as e:
+        raise HTTPException(400, f"Section: {e}")
+    w.sections = rows or None
+    audit(db, u.username, "well_sections", f"{w.name}: " + "; ".join(
+        f"{r['from_md']:g} ft {r['hole_size']:g}\" pv={r['pv']} yp={r['yp']}" for r in rows))
+    db.commit()
+    return {"sections": rows}
 
 
 @router.get("/wells")

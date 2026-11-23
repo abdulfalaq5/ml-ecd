@@ -30,6 +30,7 @@ def init_db() -> None:
     Base.metadata.create_all(engine)
     with engine.begin() as conn:  # kolom baru pada tabel lama (create_all tidak menambah kolom)
         conn.execute(text("ALTER TABLE wells ADD COLUMN IF NOT EXISTS rathole JSON"))
+        conn.execute(text("ALTER TABLE wells ADD COLUMN IF NOT EXISTS sections JSON"))
     with engine.begin() as conn:
         conn.execute(text(
             "SELECT create_hypertable('ts_data', 'ts', if_not_exists => TRUE, "

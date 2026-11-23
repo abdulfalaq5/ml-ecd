@@ -38,7 +38,7 @@ def well_frame(db: Session, well: Well, bucket_s: int | None = None) -> pd.DataF
     df = load_time(db, well.id, bucket_s=bucket_s or s.resample_s)
     if df.empty:
         return df
-    df = add_features(df, load_mw(db, well.id), load_survey(db, well.id))
+    df = add_features(df, load_mw(db, well.id), load_survey(db, well.id), well.sections)
     df["well"] = well.name
     return df
 
@@ -51,6 +51,9 @@ def labeled(df: pd.DataFrame, need_mw: bool = True) -> pd.DataFrame:
     m = df["ecd"].between(7, 20) & df["state"].isin(PUMPS_ON_STATES) & df["flow_in"].notna() & df["spp"].notna()
     if need_mw:
         m &= df["mw"].between(7, 20)
+    # Catatan: label 'beku' (ecd_stale, ±5–7 mnt setelah pompa hidup lagi) SENGAJA tetap dipakai. Uji LOWO 5 sumur
+    # (24 Nov 2026): membuangnya menaikkan MAE rata-rata 0,303 → 0,320 ppg, karena nilai sebelum sambung pipa ≈ ECD
+    # sirkulasi sesudahnya. Penanda beku dipakai di alert/margin dan kalibrasi ramalan (core/forecast.py).
     # buang glitch fisik (mis. bit depth 105.888 ft di BDSI 21): bit tidak mungkin jauh di bawah hole depth
     bit, hole = df["bit_depth"], df.get("hole_depth", df["bit_depth"])
     m &= bit.between(0, 40000) & ~(bit > hole + 100)

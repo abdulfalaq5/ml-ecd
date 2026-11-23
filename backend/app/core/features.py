@@ -77,13 +77,38 @@ def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float
     return pd.Series(out, index=hole.index)
 
 
-def add_features(df: pd.DataFrame, mw: pd.DataFrame, survey: pd.DataFrame) -> pd.DataFrame:
+def stale_ecd_mask(df: pd.DataFrame) -> pd.Series:
+    """True = ECD terukur 'beku': nilai yang ditahan sistem permukaan sejak pompa mati.
+
+    PWD mengirim lewat pulsa lumpur, jadi saat pompa mati tidak ada data baru dan nilai terakhir ditahan,
+    bahkan beberapa menit setelah pompa hidup lagi sampai alat mengirim nilai baru (BDSI 61: 100% titik
+    pompa mati bernilai sama persis). Semua baris dalam satu deret nilai sama yang sudah melewati pompa mati
+    ditandai beku. Flow kosong (NaN) tidak dianggap pompa mati.
+    """
+    if "ecd" not in df:
+        return pd.Series(False, index=df.index)
+    e = df["ecd"]
+    v = e.ffill()
+    grp = (v != v.shift()).cumsum()
+    off = df.get("flow_in", pd.Series(np.nan, index=df.index)) < get_settings().flow_min_gpm
+    seen_off = off.astype(int).groupby(grp).cummax().astype(bool)
+    return seen_off & e.notna()
+
+
+def add_features(df: pd.DataFrame, mw: pd.DataFrame, survey: pd.DataFrame, sections: list[dict] | None = None) -> pd.DataFrame:
     """Tambahkan state + fitur turunan. MW = Rec 04 as-of hole depth tertinggi yang sudah dicapai
-    (aturan effective-from 'sejak bit melewati depth', Lampiran H B14)."""
+    (aturan effective-from 'sejak bit melewati depth', Lampiran H B14). Ukuran lubang dari data section sumur
+    (wells.sections) dengan aturan yang sama; tanpa data section -> kosong."""
     out = df.copy()
     out["state"] = derive_state(out)
     hole_reached = hole_reached_robust(out.get("hole_depth", out.get("bit_depth")))
+    out["hole_reached"] = hole_reached          # hole depth tercapai, tahan glitch (dipakai juga oleh ramalan)
     out["mw"] = asof_step(hole_reached, mw["md"], mw["mw"]) if len(mw) else np.nan
+    if sections:
+        srt = sorted(sections, key=lambda s: s["from_md"])
+        out["hole_size"] = asof_step(hole_reached, pd.Series([s["from_md"] for s in srt]), pd.Series([s["hole_size"] for s in srt]))
+    else:
+        out["hole_size"] = np.nan
     if len(survey) and survey["tvd"].notna().sum() >= 2:
         out["tvd_bit"] = interp(out["bit_depth"], survey["md"], survey["tvd"])
         out["inc_bit"] = interp(out["bit_depth"], survey["md"], survey["inc"]) if survey["inc"].notna().any() else np.nan
@@ -99,6 +124,7 @@ def add_features(df: pd.DataFrame, mw: pd.DataFrame, survey: pd.DataFrame) -> pd
     grp = (pumps != pumps.shift()).cumsum()
     since = out.index.to_series().groupby(grp).transform(lambda x: (x - x.iloc[0]).dt.total_seconds() / 60)
     out["t_pumps_on"] = np.where(pumps, since.clip(upper=120), 0.0)
+    out["ecd_stale"] = stale_ecd_mask(out)
     for f in FEATURES:
         if f not in out:
             out[f] = np.nan
