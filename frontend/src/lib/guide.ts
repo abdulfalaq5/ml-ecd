@@ -301,6 +301,7 @@ export const HOWTOS: HowTo[] = [
       "Buka 4 · Data & Upload, pilih sumur, lalu di kartu sumur klik + Isi section (atau Ubah section).",
       "Satu baris per section: mulai hole depth (ft), ukuran lubang (in), shoe casing MD (casing yang sudah terpasang di atas section ini), ID casing (kosong = otomatis), string katalog (kosong = otomatis per ukuran lubang), PV & YP spek lumpur.",
       "Baris berlaku sejak hole depth itu tercapai sampai baris berikutnya, seperti MW Rec 04.",
+      "Bila casing di-set lebih dangkal dari TD section sebelumnya (rathole, mis. GW339: 7\" di 5.354 ft, TD 8-1/2\" 5.652 ft), isi kolom 'Berlaku sejak' dengan waktu casing selesai: baris itu berlaku sejak waktu tersebut, bukan dari kedalaman.",
       "Klik Simpan section. Perubahan tercatat di audit log.",
       "Ramalan ECD otomatis memakai section yang aktif di kedalaman jam mulai (isian di form Ramalan masih bisa diubah).",
     ],

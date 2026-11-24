@@ -51,19 +51,40 @@ def derive_state(df: pd.DataFrame) -> pd.Series:
     return st
 
 
-def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float = 1000.0, confirm: int = 10) -> pd.Series:
+def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float = 1000.0, confirm: int = 10,
+                        reset_ft: float = 150.0, reset_h: float = 2.0) -> pd.Series:
     """Hole depth tertinggi yang sudah dicapai, tahan glitch (kausal, untuk MW effective-from depth).
 
     cummax() polos terkunci selamanya oleh satu spike (mis. 635 → 3634 ft di GW339, 439.386 ft di BDSI 21) sehingga MW
     sesudahnya ikut salah. Kenaikan diterima bila masuk akal secara fisik (≤ base_ft + ft_per_h × jeda); lompatan lebih
     besar (termasuk sesudah data kosong lama, contoh spike GW339 29 Okt) baru diterima bila bertahan `confirm` sampel
-    berturut-turut (mis. data lanjut setelah jeda / koreksi depth)."""
+    berturut-turut (mis. data lanjut setelah jeda / koreksi depth).
+
+    Hole depth tidak pernah turun saat operasi normal (trip hanya menggerakkan bit). Bila hole depth mentah bertahan
+    > `reset_ft` di bawah nilai tercapai selama ≥ `reset_h` jam, itu koreksi depth / sidetrack / re-entry, bukan glitch:
+    nilai tercapai di-reset (GW339 16 Nov: 9.909 ft yang mustahil → 5.357 ft di shoe 7")."""
     v = hole.to_numpy(dtype=float)
     t = hole.index.asi8 / 1e9 if isinstance(hole.index, pd.DatetimeIndex) else np.arange(len(v), dtype=float) * 30
     out = np.full(len(v), np.nan)
-    cur, t_cur, pend = np.nan, None, 0
+    cur, t_cur, pend, low_since, low = np.nan, None, 0, None, []
     for i, x in enumerate(v):
+        if not np.isnan(cur) and cur > 100 and x < 10:  # kanal kosong terbaca 0 saat sumur sudah dalam: bukan data
+            x = np.nan
         if not np.isnan(x):
+            if not np.isnan(cur) and x < cur - reset_ft:
+                if low_since is None:
+                    low_since, low = t[i], []
+                low.append((t[i], x))
+                recent = [y for tt, y in low if tt >= t[i] - 1800]
+                # syarat: bertahan ≥ reset_h DAN stabil (≤ 150 ft / 30 mnt, setara mengebor). Nilai yang bergerak cepat =
+                # kanal hole mengikuti bit saat trip (BDSI 21 9 Nov), bukan koreksi.
+                if t[i] - low_since >= reset_h * 3600 and max(recent) - min(recent) <= 150:
+                    cur = float(np.median(recent))
+                    t_cur, pend, low_since = t[i], 0, None
+                    out[i] = cur
+                    continue
+            else:
+                low_since = None
             if np.isnan(cur) or x <= cur:  # sampel wajar (tidak lebih dalam dari yang sudah dicapai)
                 cur = x if np.isnan(cur) else cur
                 t_cur, pend = t[i], 0
@@ -104,11 +125,8 @@ def add_features(df: pd.DataFrame, mw: pd.DataFrame, survey: pd.DataFrame, secti
     hole_reached = hole_reached_robust(out.get("hole_depth", out.get("bit_depth")))
     out["hole_reached"] = hole_reached          # hole depth tercapai, tahan glitch (dipakai juga oleh ramalan)
     out["mw"] = asof_step(hole_reached, mw["md"], mw["mw"]) if len(mw) else np.nan
-    if sections:
-        srt = sorted(sections, key=lambda s: s["from_md"])
-        out["hole_size"] = asof_step(hole_reached, pd.Series([s["from_md"] for s in srt]), pd.Series([s["hole_size"] for s in srt]))
-    else:
-        out["hole_size"] = np.nan
+    from .sections import hole_size_series
+    out["hole_size"] = hole_size_series(sections, hole_reached)
     if len(survey) and survey["tvd"].notna().sum() >= 2:
         out["tvd_bit"] = interp(out["bit_depth"], survey["md"], survey["tvd"])
         out["inc_bit"] = interp(out["bit_depth"], survey["md"], survey["inc"]) if survey["inc"].notna().any() else np.nan

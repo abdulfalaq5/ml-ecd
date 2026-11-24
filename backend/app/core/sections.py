@@ -1,6 +1,8 @@
 """Data section per sumur (depth-based, seperti MW Rec 04): ukuran lubang, casing shoe, string, PV/YP spek.
 
-Satu baris = berlaku sejak hole depth `from_md` tercapai sampai baris berikutnya. Dipakai ramalan ECD (hidraulika,
+Satu baris = berlaku sejak hole depth `from_md` tercapai sampai baris berikutnya. Opsional `since` (waktu): baris
+berlaku sejak waktu itu, bukan dari kedalaman — untuk casing yang di-set lebih dangkal dari TD section sebelumnya
+(GW339: 7" di 5.354 ft, TD 8-1/2" 5.652 ft → lubang 6-1/8" mulai dari dalam rathole). Dipakai ramalan ECD (hidraulika,
 cutting) dan nantinya estimasi bending (preset string). Disimpan di kolom JSON `wells.sections`.
 
   {"from_md": 1500, "hole_size": 12.25, "shoe_md": 1495, "casing_id": 12.415, "preset": "BHA_12.25_STD",
@@ -9,11 +11,12 @@ cutting) dan nantinya estimasi bending (preset string). Disimpan di kolom JSON `
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 
 from . import bending as bd
 from . import hydraulics as hy
 
-FIELDS = ("from_md", "hole_size", "shoe_md", "casing_id", "preset", "pv", "yp", "note")
+FIELDS = ("from_md", "hole_size", "shoe_md", "casing_id", "preset", "pv", "yp", "since", "note")
 
 
 def _num(v, name: str, lo: float, hi: float, i: int, required: bool = False) -> float | None:
@@ -28,6 +31,24 @@ def _num(v, name: str, lo: float, hi: float, i: int, required: bool = False) -> 
     if not lo <= x <= hi:
         raise ValueError(f"baris {i + 1}: {name} {x:g} di luar rentang {lo:g}–{hi:g}")
     return x
+
+
+def _since(v, i: int) -> str | None:
+    if v in (None, ""):
+        return None
+    try:
+        t = pd.Timestamp(v)
+    except (ValueError, TypeError):
+        raise ValueError(f"baris {i + 1}: 'berlaku sejak' bukan waktu yang valid")
+    if t.tzinfo is None:
+        t = t.tz_localize("Asia/Jakarta")
+    return t.isoformat()
+
+
+def _applies(s: dict, hole_md, t) -> bool:
+    if s.get("since"):
+        return t is not None and pd.Timestamp(t) >= pd.Timestamp(s["since"])
+    return hole_md is not None and np.isfinite(hole_md) and s["from_md"] <= hole_md
 
 
 def clean_sections(rows: list[dict] | None) -> list[dict]:
@@ -45,6 +66,7 @@ def clean_sections(rows: list[dict] | None) -> list[dict]:
             "pv": _num(r.get("pv"), "PV", 1, 150, i),
             "yp": _num(r.get("yp"), "YP", 1, 150, i),
             "preset": (r.get("preset") or None),
+            "since": _since(r.get("since"), i),
             "note": str(r.get("note") or "")[:200],
         }
         if s["preset"] and s["preset"] not in presets:
@@ -63,15 +85,27 @@ def clean_sections(rows: list[dict] | None) -> list[dict]:
     return out
 
 
-def section_at(sections: list[dict] | None, hole_md: float | None) -> dict | None:
-    """Baris aktif: from_md terbesar ≤ hole depth yang sudah dicapai. Sebelum baris pertama → None."""
-    if not sections or hole_md is None or not np.isfinite(hole_md):
+def section_at(sections: list[dict] | None, hole_md: float | None, t=None) -> dict | None:
+    """Baris aktif: from_md terbesar di antara baris yang berlaku (kedalaman tercapai, atau waktu ≥ since)."""
+    if not sections:
         return None
     act = None
     for s in sorted(sections, key=lambda s: s["from_md"]):
-        if s["from_md"] <= hole_md:
+        if _applies(s, hole_md, t):
             act = s
     return act
+
+
+def hole_size_series(sections: list[dict] | None, hole_reached: pd.Series) -> pd.Series:
+    """Ukuran lubang per baris data (aturan sama dengan section_at)."""
+    out = pd.Series(np.nan, index=hole_reached.index)
+    for s in sorted(sections or [], key=lambda s: s["from_md"]):
+        if s.get("since"):
+            m = hole_reached.index >= pd.Timestamp(s["since"])
+        else:
+            m = (hole_reached >= s["from_md"]).to_numpy()
+        out[m] = s["hole_size"]
+    return out
 
 
 def presets_for_ui() -> list[dict]:

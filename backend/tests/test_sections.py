@@ -47,3 +47,16 @@ def test_add_features_hole_size_from_sections():
     out = add_features(df, mw, sv, sec.clean_sections(ROWS))
     assert list(out["hole_size"]) == [12.25, 12.25, 8.5, 8.5, 8.5, 8.5]
     assert add_features(df, mw, sv)["hole_size"].isna().all()
+
+
+def test_since_row_applies_by_time_not_depth():
+    """GW339: 7" di 5.354 ft (TD 8-1/2" 5.652) → 6-1/8" berlaku sejak waktu, termasuk di dalam rathole."""
+    import pandas as pd
+    rows = sec.clean_sections([{"from_md": 630, "hole_size": 8.5, "shoe_md": 630},
+                               {"from_md": 5354, "hole_size": 6.125, "shoe_md": 5354, "since": "2026-11-13T00:00"}])
+    before, after = pd.Timestamp("2026-11-08", tz="Asia/Jakarta"), pd.Timestamp("2026-11-17", tz="Asia/Jakarta")
+    assert sec.section_at(rows, 5600, before)["hole_size"] == 8.5      # dibor 8-1/2" sebelum casing 7"
+    assert sec.section_at(rows, 5400, after)["hole_size"] == 6.125     # sesudah casing, walau di atas TD 8-1/2"
+    assert rows[1]["since"].endswith("+07:00")
+    hr = pd.Series([5600.0, 5400.0], index=pd.DatetimeIndex([before, after]).tz_convert("UTC"))
+    assert list(sec.hole_size_series(rows, hr)) == [8.5, 6.125]

@@ -84,7 +84,7 @@ def init(wid: int, t_cut: str | None = None, hours: float = 6, db: Session = Dep
         plan = [{"op": "drill" if ref.rop > 0 else "circ", "hours": hours}]
         src = "parameter acuan 1 jam terakhir"
     cs = fc.connection_stats(hist)
-    sect = sec.section_at(w.sections, ref.hole_md)
+    sect = sec.section_at(w.sections, ref.hole_md, c)
     ver, ppfg = active_ppfg(db, w.id)
     versions = [{"id": v.id, "version": v.version, "status": v.status} for v in
                 db.scalars(select(PPFGVersion).where(PPFGVersion.well_id == w.id).order_by(PPFGVersion.version.desc()))]
@@ -141,7 +141,7 @@ def run(wid: int, body: ForecastIn, db: Session = Depends(get_db), _: User = Dep
     hist = df[df.index <= c]
     # data section aktif di jam mulai mengisi yang tidak dikirim form (ukuran lubang, casing, string, PV/YP, shoe)
     hcol = "hole_reached" if "hole_reached" in hist else "hole_depth"
-    sect = sec.section_at(w.sections, float(hist[hcol].dropna().iloc[-1])) if len(hist) and hist[hcol].notna().any() else None
+    sect = sec.section_at(w.sections, float(hist[hcol].dropna().iloc[-1]) if len(hist) and hist[hcol].notna().any() else None, c)
     if sect:
         for k_cfg, k_sec in (("hole_size", "hole_size"), ("casing_id", "casing_id"), ("preset", "preset"), ("pv", "pv"), ("yp", "yp")):
             if k_cfg not in cfg and sect.get(k_sec) is not None:
