@@ -60,3 +60,16 @@ def test_since_row_applies_by_time_not_depth():
     assert rows[1]["since"].endswith("+07:00")
     hr = pd.Series([5600.0, 5400.0], index=pd.DatetimeIndex([before, after]).tz_convert("UTC"))
     assert list(sec.hole_size_series(rows, hr)) == [8.5, 6.125]
+
+
+def test_mw_switches_only_after_drilling_past_section_point():
+    """BEKA-255: Rec 04 3.061 → 8,8 (lumpur 8-1/2"), TD 12-1/4" 3.062. Saat trip/casing di TD, MW tetap 10,3."""
+    import numpy as np
+    import pandas as pd
+    from app.core.features import MW_LAG_FT, add_features
+    idx = pd.date_range("2026-09-27", periods=4, freq="1h", tz="UTC")
+    hole = [3000.0, 3062.0, 3062.0, 3061.0 + MW_LAG_FT + 5]
+    df = pd.DataFrame({"hole_depth": hole, "bit_depth": hole, "flow_in": [600.0] * 4}, index=idx)
+    mw = pd.DataFrame({"md": [0.0, 2900.0, 3061.0], "mw": [9.3, 10.3, 8.8]})
+    out = add_features(df, mw, pd.DataFrame(columns=["md", "tvd", "inc", "azi", "dls"]))
+    assert list(out["mw"]) == [10.3, 10.3, 10.3, 8.8]

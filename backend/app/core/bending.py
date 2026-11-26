@@ -369,7 +369,7 @@ def assign_runs(rig: pd.DataFrame, runs: list[Run]) -> np.ndarray:
         return np.zeros(len(rig), dtype=int)
     from .features import hole_reached_robust
     src = rig["hole_depth"] if "hole_depth" in rig and rig["hole_depth"].notna().any() else rig["bit_depth"]
-    reached = hole_reached_robust(src).to_numpy()
+    reached = hole_reached_robust(src, bit=rig.get("bit_depth"), flow=rig.get("flow_in")).to_numpy()
     starts = np.array([r.from_md for r in runs])
     idx = np.searchsorted(starts, np.nan_to_num(reached, nan=0.0), side="right") - 1
     return np.clip(idx, 0, len(runs) - 1)

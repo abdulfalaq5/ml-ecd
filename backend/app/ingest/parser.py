@@ -334,6 +334,20 @@ def _norm(x: str) -> str:
 SKIP_UNMAPPED = {"WID", "SKNO", "RID", "SQID", "DATE", "TIME", "DTSRV", "DEPTH", "DATE TIME SERVER"}
 
 
+# Satuan non-standar → satuan kanonik (torque kft·lb). Contoh: export Rec 01 BLSE-055 (ACS-26) menulis TORQUE
+# dalam lbf.ft (median 5.040 saat sirkulasi), file lain sumur yang sama kft.lb.
+UNIT_FACTORS = {"torque": {"LBF.FT": 1e-3, "FT.LBF": 1e-3, "LB.FT": 1e-3, "FT.LB": 1e-3, "LBFFT": 1e-3, "FTLBF": 1e-3},
+                "torque_max": {"LBF.FT": 1e-3, "FT.LBF": 1e-3, "LB.FT": 1e-3, "FT.LB": 1e-3}}
+
+
+def _unit_of(pt: ParsedTable, raw: pd.DataFrame, col: str) -> str:
+    return next((c.unit for c, n in zip(pt.curves, raw.columns) if n == col), "")
+
+
+def _unit_factor(canon: str, unit: str) -> float:
+    return UNIT_FACTORS.get(canon, {}).get(unit.strip().upper().replace("-", "."), 1.0)
+
+
 ZERO_AS_NULL = ("flow_in", "rpm", "wob", "rop", "torque", "spp", "spm1", "spm2", "spm3", "flow_out_pct")
 
 
@@ -366,7 +380,7 @@ def canonicalize(pt: ParsedTable, source_tz: str) -> ParsedTable:
             v = raw[col].astype(str).str.strip()
             df[canon] = v.where(~v.isin(NULLS), None)
         else:
-            df[canon] = _to_num(raw[col])
+            df[canon] = _to_num(raw[col]) * _unit_factor(canon, _unit_of(pt, raw, col))
 
     if pt.record in (1, 2) and pt.fmt == "las-rig":
         # Export LAS rig menulis 0 sebagai -999.25 (terbukti identik dengan CSV pasangannya, PDSI 53.2)

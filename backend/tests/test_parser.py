@@ -106,3 +106,27 @@ def test_ascii_headers_with_units_are_mapped():
         assert c in pt.mapped, c
     assert pt.mapped["flow_in"] == "Mud Flow In (gpm)"
     assert pt.mapped["flow_out_pct"] == "Mud Flow Out %"  # bukan 'Mud Flow Out (avg)' (bbl)
+
+
+def test_torque_lbf_ft_converted_to_kft_lb():
+    """Export Rec 01 BLSE-055 menulis TORQUE dalam lbf.ft; harus jadi kft·lb seperti file lain."""
+    name = "export_las_record_01_21-11-2026_120513.LAS"
+    raw = (FX / name).read_bytes()
+    base = canonicalize(parse_bytes(name, raw), "Asia/Jakarta").data
+    if "torque" not in base or base["torque"].dropna().empty:
+        pytest.skip("fixture tanpa torque")
+    txt = raw.decode("latin-1")
+    import re
+    m = re.search(r"^(TORQUE\s+)\.(\S+)", txt, flags=re.M)
+    assert m, "kurva TORQUE tidak ada di header fixture"
+    # tulis ulang satuan + nilai ×1000 di blok data tidak praktis; cukup pastikan faktor satuan diterapkan
+    alt = txt[:m.start(2)] + "lbf.ft" + txt[m.end(2):]
+    conv = canonicalize(parse_bytes(name, alt.encode("latin-1")), "Asia/Jakarta").data
+    pd.testing.assert_series_equal(conv["torque"], base["torque"] * 1e-3, check_names=False)
+
+
+def test_unit_factor_table():
+    from app.ingest.parser import _unit_factor
+    assert _unit_factor("torque", "lbf.ft") == 1e-3 and _unit_factor("torque", "ft-lbf") == 1e-3
+    assert _unit_factor("torque", "kft.lb") == 1.0 and _unit_factor("torque", "klbf.ft") == 1.0
+    assert _unit_factor("wob", "lbf.ft") == 1.0

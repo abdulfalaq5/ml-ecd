@@ -75,10 +75,11 @@ Data disimpan dalam **UTC**. Kolom waktu di file (`dtsrv`) dibaca sebagai **WIB*
 File Navita/rig (.las/.csv/.zip)
    │  upload · folder pantau · CLI
    ▼
-1. INGEST     parser → mapping kanal kanonik (mnemonics.yaml) → QC per file → simpan
+1. INGEST     parser → mapping kanal kanonik (mnemonics.yaml) + konversi satuan (torque lbf·ft → kft·lb) → QC → simpan
               Rec 01/02 → ts_data (time) / depth_data   Rec 03 → PPFG draft   Rec 04 → MW   Rec 07 → survey
    ▼
-2. FITUR      bucket 30 dtk · gabung Rec 01 + Rec 02 · operating state · MW as-of hole depth
+2. FITUR      bucket 30 dtk · gabung Rec 01 + Rec 02 · operating state · MW as-of hole depth tercapai − 10 ft
+              (hole tercapai tahan glitch: lubang baru hanya di bit & saat pompa hidup; reset bila koreksi depth)
               · TVD/inklinasi dari survey · fitur permukaan (flow, SPP, RPM, WOB, ROP, hookload, torque, …)
    ▼
 3. ECD ⓥ      model aktif (production → shadow → candidate) memprediksi ΔECD = ECD − MW, lalu ECD = MW + Δ

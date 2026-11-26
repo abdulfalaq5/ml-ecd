@@ -52,7 +52,8 @@ def derive_state(df: pd.DataFrame) -> pd.Series:
 
 
 def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float = 1000.0, confirm: int = 10,
-                        reset_ft: float = 150.0, reset_h: float = 2.0) -> pd.Series:
+                        reset_ft: float = 150.0, reset_h: float = 2.0, bit: pd.Series | None = None,
+                        flow: pd.Series | None = None, bit_tol_ft: float = 50.0, flow_min: float | None = None) -> pd.Series:
     """Hole depth tertinggi yang sudah dicapai, tahan glitch (kausal, untuk MW effective-from depth).
 
     cummax() polos terkunci selamanya oleh satu spike (mis. 635 → 3634 ft di GW339, 439.386 ft di BDSI 21) sehingga MW
@@ -62,11 +63,19 @@ def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float
 
     Hole depth tidak pernah turun saat operasi normal (trip hanya menggerakkan bit). Bila hole depth mentah bertahan
     > `reset_ft` di bawah nilai tercapai selama ≥ `reset_h` jam, itu koreksi depth / sidetrack / re-entry, bukan glitch:
-    nilai tercapai di-reset (GW339 16 Nov: 9.909 ft yang mustahil → 5.357 ft di shoe 7")."""
+    nilai tercapai di-reset (GW339 16 Nov: 9.909 ft yang mustahil → 5.357 ft di shoe 7").
+
+    Bila `bit` / `flow` diberikan: lubang baru hanya terbentuk di bit dan saat pompa hidup. Pendalaman ditolak bila bit
+    > `bit_tol_ft` di atas kedalaman baru (BLSO-717 25 Nov: hole 1.026 → 3.633 ft saat bit di 754 ft) atau flow
+    < `flow_min` (BEKA-255 30 Sep: hole & bit "naik" 3.061 → 4.470 ft dengan pompa mati, ROP 1.900 ft/jam; pengeboran
+    nyata 1 Okt dari 3.061 ke 4.144 ft). Hanya berlaku di atas puncak yang pernah dicapai. NaN tidak menolak."""
     v = hole.to_numpy(dtype=float)
     t = hole.index.asi8 / 1e9 if isinstance(hole.index, pd.DatetimeIndex) else np.arange(len(v), dtype=float) * 30
     out = np.full(len(v), np.nan)
-    cur, t_cur, pend, low_since, low = np.nan, None, 0, None, []
+    b = bit.reindex(hole.index).to_numpy(dtype=float) if bit is not None else np.full(len(v), np.nan)
+    q = flow.reindex(hole.index).to_numpy(dtype=float) if flow is not None else np.full(len(v), np.nan)
+    qmin = get_settings().flow_min_gpm if flow_min is None else flow_min
+    cur, t_cur, pend, low_since, low, peak = np.nan, None, 0, None, [], -np.inf
     for i, x in enumerate(v):
         if not np.isnan(cur) and cur > 100 and x < 10:  # kanal kosong terbaca 0 saat sumur sudah dalam: bukan data
             x = np.nan
@@ -85,6 +94,12 @@ def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float
                     continue
             else:
                 low_since = None
+            # hanya untuk kedalaman BARU (> puncak yang pernah dicapai): kembali ke kedalaman lama sesudah reset palsu
+            # (BDSI 21 7 Nov: kanal hole sempat 1–2 ft lalu kembali 3.328 saat bit masih di permukaan) tetap boleh
+            if not np.isnan(cur) and x > max(cur, peak) + 1 and ((b[i] < x - bit_tol_ft) or (q[i] < qmin)):
+                out[i] = cur  # "pendalaman" tanpa bit di dasar / tanpa pompa: bukan lubang baru
+                pend = 0
+                continue
             if np.isnan(cur) or x <= cur:  # sampel wajar (tidak lebih dalam dari yang sudah dicapai)
                 cur = x if np.isnan(cur) else cur
                 t_cur, pend = t[i], 0
@@ -95,6 +110,8 @@ def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float
                 if pend >= confirm:
                     cur, t_cur, pend = x, t[i], 0
         out[i] = cur
+        if not np.isnan(cur):
+            peak = max(peak, cur)
     return pd.Series(out, index=hole.index)
 
 
@@ -116,15 +133,23 @@ def stale_ecd_mask(df: pd.DataFrame) -> pd.Series:
     return seen_off & e.notna()
 
 
+# MW baru berlaku sesudah bit membuat ≥ MW_LAG_FT lubang baru melewati titik Rec 04. Di batas section Rec 04 mencatat
+# lumpur section berikutnya tepat di TD section (BEKA-255 3.061 ft → 8,8; TD 12-1/4" 3.062), padahal selama trip keluar,
+# casing & semen lumpur lama (10,3) masih di lubang. Uji 14 sumur (27 Nov): label ECD−MW mustahil (< 0 atau > 2 ppg)
+# 4.613 → 3.390 baris dengan 10 ft (20 ft: 3.587; 50 ft: 3.495).
+MW_LAG_FT = 10.0
+
+
 def add_features(df: pd.DataFrame, mw: pd.DataFrame, survey: pd.DataFrame, sections: list[dict] | None = None) -> pd.DataFrame:
     """Tambahkan state + fitur turunan. MW = Rec 04 as-of hole depth tertinggi yang sudah dicapai
     (aturan effective-from 'sejak bit melewati depth', Lampiran H B14). Ukuran lubang dari data section sumur
     (wells.sections) dengan aturan yang sama; tanpa data section -> kosong."""
     out = df.copy()
     out["state"] = derive_state(out)
-    hole_reached = hole_reached_robust(out.get("hole_depth", out.get("bit_depth")))
+    hole_reached = hole_reached_robust(out.get("hole_depth", out.get("bit_depth")), bit=out.get("bit_depth"),
+                                       flow=out.get("flow_in"))
     out["hole_reached"] = hole_reached          # hole depth tercapai, tahan glitch (dipakai juga oleh ramalan)
-    out["mw"] = asof_step(hole_reached, mw["md"], mw["mw"]) if len(mw) else np.nan
+    out["mw"] = asof_step(hole_reached - MW_LAG_FT, mw["md"], mw["mw"]) if len(mw) else np.nan
     from .sections import hole_size_series
     out["hole_size"] = hole_size_series(sections, hole_reached)
     if len(survey) and survey["tvd"].notna().sum() >= 2:
