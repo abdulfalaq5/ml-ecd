@@ -1,8 +1,9 @@
 """Data section per sumur (depth-based, seperti MW Rec 04): ukuran lubang, casing shoe, string, PV/YP spek.
 
 Satu baris = berlaku sejak hole depth `from_md` tercapai sampai baris berikutnya. Opsional `since` (waktu): baris
-berlaku sejak waktu itu, bukan dari kedalaman — untuk casing yang di-set lebih dangkal dari TD section sebelumnya
-(GW339: 7" di 5.354 ft, TD 8-1/2" 5.652 ft → lubang 6-1/8" mulai dari dalam rathole). Dipakai ramalan ECD (hidraulika,
+berlaku sejak waktu itu DAN hole depth ≥ from_md — untuk casing yang di-set lebih dangkal dari TD section sebelumnya
+(GW339: 7" di 5.354 ft, TD 8-1/2" 5.651 ft → sesudah casing: rathole 8-1/2" 5.354–5.651 dibersihkan dengan bit 6-1/8",
+baru lubang 6-1/8" baru di bawah 5.651). Dipakai ramalan ECD (hidraulika,
 cutting) dan nantinya estimasi bending (preset string). Disimpan di kolom JSON `wells.sections`.
 
   {"from_md": 1500, "hole_size": 12.25, "shoe_md": 1495, "casing_id": 12.415, "preset": "BHA_12.25_STD",
@@ -46,9 +47,10 @@ def _since(v, i: int) -> str | None:
 
 
 def _applies(s: dict, hole_md, t) -> bool:
+    deep = hole_md is not None and np.isfinite(hole_md) and s["from_md"] <= hole_md
     if s.get("since"):
-        return t is not None and pd.Timestamp(t) >= pd.Timestamp(s["since"])
-    return hole_md is not None and np.isfinite(hole_md) and s["from_md"] <= hole_md
+        return deep and t is not None and pd.Timestamp(t) >= pd.Timestamp(s["since"])
+    return deep
 
 
 def clean_sections(rows: list[dict] | None) -> list[dict]:
@@ -100,10 +102,9 @@ def hole_size_series(sections: list[dict] | None, hole_reached: pd.Series) -> pd
     """Ukuran lubang per baris data (aturan sama dengan section_at)."""
     out = pd.Series(np.nan, index=hole_reached.index)
     for s in sorted(sections or [], key=lambda s: s["from_md"]):
+        m = (hole_reached >= s["from_md"]).to_numpy()
         if s.get("since"):
-            m = hole_reached.index >= pd.Timestamp(s["since"])
-        else:
-            m = (hole_reached >= s["from_md"]).to_numpy()
+            m &= hole_reached.index >= pd.Timestamp(s["since"])
         out[m] = s["hole_size"]
     return out
 

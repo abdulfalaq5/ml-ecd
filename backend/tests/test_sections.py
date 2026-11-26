@@ -73,3 +73,19 @@ def test_mw_switches_only_after_drilling_past_section_point():
     mw = pd.DataFrame({"md": [0.0, 2900.0, 3061.0], "mw": [9.3, 10.3, 8.8]})
     out = add_features(df, mw, pd.DataFrame(columns=["md", "tvd", "inc", "azi", "dls"]))
     assert list(out["mw"]) == [10.3, 10.3, 10.3, 8.8]
+
+
+def test_since_row_needs_time_and_depth_rathole_then_new_hole():
+    """GW339: sesudah 7" (13 Nov) rathole 8-1/2" s.d. 5.651 dibersihkan bit 6-1/8"; lubang 6-1/8" baru di bawah 5.651."""
+    import pandas as pd
+    rows = sec.clean_sections([
+        {"from_md": 630, "hole_size": 8.5, "shoe_md": 630},
+        {"from_md": 5354, "hole_size": 8.5, "shoe_md": 5354, "casing_id": 6.276, "since": "2026-11-13T00:00"},
+        {"from_md": 5651, "hole_size": 6.125, "shoe_md": 5354, "casing_id": 6.276, "since": "2026-11-13T00:00"}])
+    t8, t18 = pd.Timestamp("2026-11-08", tz="Asia/Jakarta"), pd.Timestamp("2026-11-18", tz="Asia/Jakarta")
+    assert sec.section_at(rows, 5651.8, t8)["shoe_md"] == 630          # 8-1/2" dibor sebelum casing
+    assert sec.section_at(rows, 5540, t18)["shoe_md"] == 5354           # rathole: lubang 8-1/2" di bawah shoe 7"
+    assert sec.section_at(rows, 5540, t18)["hole_size"] == 8.5
+    assert sec.section_at(rows, 5700, t18)["hole_size"] == 6.125        # lubang baru
+    hr = pd.Series([5651.8, 5540.0, 5700.0], index=pd.DatetimeIndex([t8, t18, t18 + pd.Timedelta("1h")]).tz_convert("UTC"))
+    assert list(sec.hole_size_series(rows, hr)) == [8.5, 8.5, 6.125]
