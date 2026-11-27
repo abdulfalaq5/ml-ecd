@@ -38,7 +38,8 @@ def classify(df: pd.DataFrame, th: dict, detections: list[dict] | None = None) -
     else:
         m_low = pd.Series(np.nan, index=out.index)
     margin = pd.concat([m_up, m_low], axis=1).min(axis=1, skipna=True)
-    step = out.index.to_series().diff().dt.total_seconds().median() or 30
+    step = out.index.to_series().diff().dt.total_seconds().median()
+    step = 30.0 if not np.isfinite(step) or step <= 0 else float(step)   # 1 sampel / data rusak: anggap 30 dtk
     per = max(1, int(th["warning_persist_min"] * 60 / step))
     n5 = max(1, int(300 / step))
     rise = out["ecd_ref"] - out["ecd_ref"].shift(n5)
@@ -81,6 +82,8 @@ def classify(df: pd.DataFrame, th: dict, detections: list[dict] | None = None) -
             upd = sl & (lvl.map(RANK) < new).to_numpy()
             lvl[upd] = d["level"]
             reason[upd] = d["label"]
+            if d.get("no_pwd"):                # loss tanpa PWD: ECD ⓥ (kolom penuh) bisa lebih tinggi dari tekanan nyata
+                reason[sl & (reason == d["label"]).to_numpy()] = d["label"] + " — tanpa PWD: tekanan nyata bisa < ECD ⓥ, cek margin ke PP"
         if len(active) >= 2:
             cnt = np.sum(np.vstack(active), axis=0)
             corr = (cnt >= 2) & (lvl.map(RANK) < 2).to_numpy()

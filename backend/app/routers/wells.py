@@ -119,14 +119,74 @@ def _404():
 
 
 @router.post("/wells/{wid}/upload")
-async def upload(wid: int, files: list[UploadFile] = File(...), mode: str = Form("append"),
+async def upload(wid: int, files: list[UploadFile] = File(...), mode: str = Form("append"), tz: str = Form("WIB"),
                  db: Session = Depends(get_db), u: User = Depends(require("upload"))):
+    """tz: zona waktu file bila kolom waktunya tanpa offset — WIB (Navita, default) atau UTC (sebagian export SLB/Halliburton)."""
     w = db.get(Well, wid) or _404()
+    src_tz = {"WIB": None, "UTC": "UTC"}.get(tz.upper())
+    if tz.upper() not in ("WIB", "UTC"):
+        raise HTTPException(400, "Zona waktu harus WIB atau UTC")
     out = []
     for fl in files:
         content = await fl.read()
-        out.extend(ingest_bytes(db, w, fl.filename or "upload", content, u.username, "replace" if mode == "replace" else "append"))
+        out.extend(ingest_bytes(db, w, fl.filename or "upload", content, u.username, "replace" if mode == "replace" else "append",
+                                source_tz=src_tz))
     return {"results": out}
+
+
+# ---------------------------------------------------------------- mud weight manual
+
+class MWRow(BaseModel):
+    md: float
+    mw: float
+    remark: str | None = None
+
+
+class MWIn(BaseModel):
+    rows: list[MWRow]
+
+
+def _mw_out(db: Session, wid: int) -> dict:
+    rows = db.scalars(select(MudWeight).where(MudWeight.well_id == wid).order_by(MudWeight.md)).all()
+    fids = {r.file_id for r in rows if r.file_id}
+    files = {f.id: f.filename for f in db.scalars(select(IngestFile).where(IngestFile.id.in_(fids)))} if fids else {}
+    src = "manual" if rows and not fids else ("file: " + ", ".join(sorted(set(files.values()))) if fids else None)
+    # pembanding: mud density in dari data streaming (median per 500 ft hole depth), bila ada
+    dens = db.execute(text("""SELECT floor(hole_depth / 500) * 500 AS d, percentile_cont(0.5) WITHIN GROUP (ORDER BY mud_dens_in)
+                              FROM ts_data WHERE well_id=:w AND mud_dens_in BETWEEN 6 AND 22 AND hole_depth > 0
+                              GROUP BY 1 ORDER BY 1"""), {"w": wid}).all()
+    return {"rows": [{"md": r.md, "mw": r.mw, "remark": r.remark} for r in rows], "source": src,
+            "stream_density": [{"md_from": float(d), "mw": round(float(v), 2)} for d, v in dens]}
+
+
+@router.get("/wells/{wid}/mud-weight")
+def get_mw(wid: int, db: Session = Depends(get_db), _: User = Depends(current_user)):
+    db.get(Well, wid) or _404()
+    return _mw_out(db, wid)
+
+
+@router.put("/wells/{wid}/mud-weight")
+def put_mw(wid: int, body: MWIn, db: Session = Depends(get_db), u: User = Depends(require("mw_edit"))):
+    """Tabel MW manual (mis. dari DDR / mud report) bila tidak ada file Rec 04 Navita. Mengganti seluruh tabel MW sumur.
+    MW berlaku sejak hole depth `md` tercapai (sama seperti Rec 04)."""
+    w = db.get(Well, wid) or _404()
+    seen: set[float] = set()
+    rows = []
+    for r in sorted(body.rows, key=lambda r: r.md):
+        if r.md < 0 or r.md > 40000:
+            raise HTTPException(400, f"Kedalaman {r.md:g} ft di luar 0–40.000 ft")
+        if not 6 <= r.mw <= 22:
+            raise HTTPException(400, f"MW {r.mw:g} ppg di luar 6–22 ppg (isi dalam ppg)")
+        if r.md in seen:
+            raise HTTPException(400, f"Kedalaman {r.md:g} ft diisi dua kali")
+        seen.add(r.md)
+        rows.append({"well_id": wid, "md": float(r.md), "mw": float(r.mw), "remark": (r.remark or "").strip()[:256] or None})
+    db.execute(MudWeight.__table__.delete().where(MudWeight.well_id == wid))
+    if rows:
+        db.bulk_insert_mappings(MudWeight, rows)
+    audit(db, u.username, "mud_weight_manual", f"{w.name}: " + "; ".join(f"{r['md']:g} ft {r['mw']:g} ppg" for r in rows))
+    db.commit()
+    return _mw_out(db, wid)
 
 
 @router.post("/ingest/scan")

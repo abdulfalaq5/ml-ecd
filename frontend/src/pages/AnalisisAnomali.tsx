@@ -72,7 +72,7 @@ export default function AnalisisAnomali() {
                 {data.detections.map((d: any, i: number) => (
                   <div key={i} className="small" style={{ borderTop: "1px solid #E3E8EE", padding: "6px 0" }}>
                     <div className="row"><Level v={d.level} /><ZoneTag z={d.zone} /><span className="mono">{wib(d.start)}</span><span className="muted">{d.state}</span></div>
-                    <div>{d.label}{d.md ? ` @${ft(d.md)} ft` : ""}</div>{d.rec && <div className="muted">Verifikasi: {d.rec}</div>}
+                    <div>{d.label}{d.md ? ` @${ft(d.md)} ft` : ""}</div>{d.rec && <div className="muted">Verifikasi: {d.rec}</div>}{d.note && <div style={{ color: "#9A6700" }}>⚠ {d.note}</div>}
                   </div>
                 ))}
               </div>

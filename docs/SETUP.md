@@ -1,4 +1,4 @@
-# Setup & Migrasi Sistem ECD Monitor
+# Setup & Migrasi Sistem Paningal Sense
 
 Semua komponen jalan di Docker: database (PostgreSQL + TimescaleDB), backend (FastAPI + ML), frontend (React + nginx). Server cukup punya **Docker Engine + Docker Compose v2**. Python, Node dan Postgres tidak perlu dipasang di server.
 

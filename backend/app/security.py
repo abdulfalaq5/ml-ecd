@@ -27,6 +27,7 @@ PERM = {
     "ppfg_edit": {"admin", "rto", "data_ml", "geomech"},
     "ppfg_approve": {"admin", "geomech"},
     "mw_rule": {"admin", "mud_eng"},
+    "mw_edit": {"admin", "mud_eng", "rto", "data_ml"},
     "threshold_propose": {"admin", "rto", "drilling_eng", "data_ml", "hse"},
     "threshold_approve": {"admin", "drilling_eng", "hse"},
     "model_train": {"admin", "data_ml"},

@@ -58,9 +58,19 @@ def test_labeled_filters():
     d.loc[d.index[2], "ecd"] = 25.0                # ECD tidak fisik
     d.loc[d.index[3], "bit_depth"] = 105888.0      # glitch bit depth
     d.loc[d.index[4], "flow_in"] = np.nan
+    d.loc[d.index[5], "ecd"] = d.loc[d.index[5], "mw"] - 0.5   # ECD < MW saat pompa hidup (loss): bukan label
     lab = labeled(d)
-    assert len(lab) == 95 and not set(d.index[:5]) & set(lab.index)
+    assert len(lab) == 94 and not set(d.index[:6]) & set(lab.index)
     assert len(labeled(d, need_mw=False)) == 96
+
+
+def test_tree_prediction_never_below_mw_when_pumping():
+    """Keluhan klien 27 Nov: saat loss ECD ⓥ di bawah MW. Rugi gesek annulus ≥ 0, jadi ECD ⓥ ≥ MW."""
+    tr = synth()
+    tr.loc[tr.index[:1500], "ecd"] = tr["mw"][:1500] - 0.6        # label buruk (loss) yang lolos ke training
+    m = TreeModel("rf").fit(tr[FEATURES], tr["ecd"])
+    te = synth(seed=3)
+    assert (m.predict(te[FEATURES]) >= te["mw"].to_numpy() - 1e-9).all()
 
 
 def test_persistence_ignores_gaps():
@@ -134,6 +144,17 @@ def test_loss_single_vs_corroborated():
     assert any(x["level"] == "WARNING" for x in two)
 
 
+def test_loss_corroborated_by_ecd_below_mw():
+    """Flow out turun + ECD terukur jatuh di bawah MW (kolom lumpur turun) = WARNING; ECD < MW saja bukan alarm."""
+    from app.anomaly import detectors
+    d = _rig(fo=40.0).assign(mw=10.0, ecd=10.4)
+    d.loc[d.index[300:], "ecd"] = 9.7
+    assert not [x for x in detectors.run(d)["detections"] if x["detector"] == "loss"]
+    d.loc[d.index[300:], "flow_out_pct"] = 25.0
+    hit = [x for x in detectors.run(d)["detections"] if x["detector"] == "loss"]
+    assert any(x["level"] == "WARNING" for x in hit)
+
+
 def test_detectors_survive_coarse_buckets():
     """Bucket kasar (mis. 7 menit) tidak boleh membuat rolling crash (bug tampilan 7 hari)."""
     from app.anomaly import detectors
@@ -144,3 +165,19 @@ def test_detectors_survive_coarse_buckets():
     d["t_pumps_on"] = 60.0
     d["mw"] = 9.5
     detectors.run(d)
+
+
+def test_loss_note_without_pwd_and_below_mw():
+    """Loss tanpa PWD diberi catatan 'tekanan nyata bisa < ECD ⓥ'; dengan PWD & ECD < MW: catatan margin ke PP."""
+    from app.anomaly import detectors
+    from app.core.alerts import classify
+    d = _rig(fo=40.0).assign(mw=10.0, margin_static=1.2, lower_bit=8.8)
+    d.loc[d.index[300:], "flow_out_pct"] = 25.0
+    loss = [x for x in detectors.run(d)["detections"] if x["detector"] == "loss"]
+    assert loss and loss[0]["no_pwd"] and "Tanpa ECD terukur" in loss[0]["note"] and loss[0]["overbalance_static"] == 1.2
+    out = classify(d.assign(ecd_pred=10.4), DEFAULT_THRESHOLDS, loss)
+    assert out["reason"].str.contains("tanpa PWD").any()
+    d = d.assign(ecd=10.4)
+    d.loc[d.index[300:], "ecd"] = 9.6
+    loss = [x for x in detectors.run(d)["detections"] if x["detector"] == "loss"]
+    assert not loss[0]["no_pwd"] and "di bawah MW" in loss[0]["note"] and "0.80" in loss[0]["note"]

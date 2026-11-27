@@ -112,6 +112,7 @@ export default function LiveMonitor() {
                     <div className="row"><Level v={d.level} /><ZoneTag z={d.zone} /><span className="small mono">{wib(d.start)}</span><span className="sp" /><button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => setAck({ ...ack, [k]: true })}>Ack</button></div>
                     <div className="small" style={{ marginTop: 4 }}>{d.label}{d.md ? ` @${ft(d.md)} ft` : ""}</div>
                     {d.rec && <div className="muted small">Rekomendasi verifikasi: {d.rec}</div>}
+                    {d.note && <div className="small" style={{ color: "#9A6700", marginTop: 2 }}>⚠ {d.note}</div>}
                   </div>
                 );
               })}

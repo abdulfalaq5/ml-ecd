@@ -7,7 +7,7 @@ import { Err, Kpi, WellSelect } from "../components/ui";
 const SEG: Record<string, [string, string]> = {
   rec01_ecd: ["#1E9E5A", "Rec 01 + ECD terukur"], rec01: ["#2F6FD1", "Rec 01 saja (ECD ⓥ)"], ecd_only: ["#B98900", "ECD tanpa Rec 01"], gap: ["#D5DCE4", "gap"], none: ["#D5DCE4", "kosong"],
 };
-const LVL: Record<string, string> = { ok: "#1E9E5A", warn: "#E07A10", info: "#2F6FD1" };
+const LVL: Record<string, string> = { ok: "#1E9E5A", warn: "#E07A10", info: "#2F6FD1", error: "#D63A40" };
 const RECS: [string, string][] = [["1_time", "01 IDS Rig · time"], ["1_depth", "01 IDS Rig · depth"], ["2_time", "02 MWD/PWD · time"], ["2_depth", "02 MWD/PWD · depth"], ["3_depth", "03 PPFG"], ["4_depth", "04 Mud Weight"], ["7_depth", "07 Survey"]];
 
 export default function DataUpload() {
@@ -16,6 +16,7 @@ export default function DataUpload() {
   const files = useFetch<any[]>(() => (wellId ? api.get(`/wells/${wellId}/files`) : null), [wellId]);
   const [busy, setBusy] = useState(false); const [res, setRes] = useState<any[] | null>(null); const [msg, setMsg] = useState<string | null>(null);
   const [mode, setMode] = useState("append");
+  const [tz, setTz] = useState("WIB");
   const [newName, setNewName] = useState("");
   const [edit, setEdit] = useState<any | null>(null);
   const inp = useRef<HTMLInputElement>(null);
@@ -25,6 +26,7 @@ export default function DataUpload() {
     const fd = new FormData();
     Array.from(fl).forEach((f) => fd.append("files", f));
     fd.append("mode", mode);
+    fd.append("tz", tz);
     setBusy(true); setMsg(null);
     try { const r = await api.form(`/wells/${wellId}/upload`, fd); setRes(r.results); q.reload(); files.reload(); reloadWells(); }
     catch (e: any) { setMsg(e.message); } finally { setBusy(false); if (inp.current) inp.current.value = ""; }
@@ -68,6 +70,7 @@ export default function DataUpload() {
             </div>
           )}
           <SectionsCard wellId={wellId!} canEdit={can("well_edit")} onSaved={reloadWells} />
+          <MudWeightCard wellId={wellId!} canEdit={can("mw_edit")} onSaved={() => q.reload()} />
           <p className="note">Peran: <b>train</b> ikut training (LOWO) · <b>blind</b> sumur uji tetap, tidak pernah ikut training · <b>case</b> studi kasus (mis. PDSI 53.2) · <b>shadow</b> sumur berjalan, alert UNAVAILABLE bila data &gt; 10 mnt.</p>
         </div>
       )}
@@ -76,19 +79,24 @@ export default function DataUpload() {
           <div className="card">
             <h3>Upload file</h3>
             <div className="row">
-              <input ref={inp} type="file" multiple accept=".las,.LAS,.csv,.CSV,.zip,.txt" onChange={(e) => upload(e.target.files)} disabled={!can("upload") || busy} />
+              <input ref={inp} type="file" multiple accept=".las,.LAS,.csv,.CSV,.zip,.txt,.xlsx,.xlsm,.xls" onChange={(e) => upload(e.target.files)} disabled={!can("upload") || busy} />
               <select value={mode} onChange={(e) => setMode(e.target.value)}><option value="append">append (lewati duplikat)</option><option value="replace">replace (timpa timestamp sama)</option></select>
+              <select value={tz} onChange={(e) => setTz(e.target.value)} title="Zona waktu kolom waktu di file bila tidak tertulis offset-nya"><option value="WIB">waktu file: WIB</option><option value="UTC">waktu file: UTC</option></select>
               {can("upload") && <button onClick={scan} disabled={busy}>Scan folder inbox</button>}
               {busy && <span className="muted small">memproses…</span>}
             </div>
-            <p className="note">Format: Navita LAS / CSV (export_las_record_0N…, export_csv_record_0N…), LAS rig (tab), atau .zip berisi file-file itu. Record dikenali dari nama file / isi. Folder inbox: <span className="mono">data/inbox/&lt;nama sumur&gt;/</span> di-scan otomatis tiap 60 dtk.</p>
+            <p className="note">Format: Navita LAS / CSV (export_las_record_0N…), LAS rig, <b>time-based SLB / Halliburton</b> (LAS / CSV / Excel), <b>survey</b> (CSV / Excel: MD, Inc, Azi; TVD & DLS dihitung bila tidak ada), <b>tabel MW</b> (kedalaman + MW), atau .zip berisi file-file itu. Jenis data dikenali dari nama file / kolom; satuan metrik (m, kN, bar, L/min, SG) dikonversi bila satuannya tertulis. Navita = WIB; pilih <b>UTC</b> bila file streaming ditulis dalam UTC (waktu yang membawa Z / +07:00 selalu dibaca sesuai offset). Folder inbox: <span className="mono">data/inbox/&lt;nama sumur&gt;/</span> di-scan otomatis tiap 60 dtk.</p>
             {res && (
               <table style={{ marginTop: 8 }}>
                 <thead><tr><th>File</th><th>Status</th><th>Rec</th><th>Basis</th><th>Baris</th><th>QC</th></tr></thead>
                 <tbody>{res.map((r, i) => (
                   <tr key={i}><td className="small">{r.file}</td><td style={{ color: r.status === "ok" ? "#1E9E5A" : r.status === "error" ? "#D63A40" : "#5B6775" }}>{r.status}</td>
                     <td className="mono">{r.record ? String(r.record).padStart(2, "0") : ""}</td><td>{r.basis}</td><td className="mono">{r.rows?.toLocaleString()}</td>
-                    <td className="small">{r.message || (r.qc || []).filter((x: any) => x.level !== "ok").map((x: any) => x.title).join("; ")}</td></tr>
+                    <td className="small">{r.message || (r.qc || []).filter((x: any) => x.level === "error" || x.level === "warn").map((x: any, j: number) => (
+                      <div key={j}><b style={{ color: LVL[x.level] }}>{x.title}</b>: <span className="muted">{x.text}</span></div>))}
+                      {!r.message && (r.qc || []).filter((x: any) => x.level === "info").length > 0 && (
+                        <details><summary className="muted">detail ({(r.qc || []).filter((x: any) => x.level === "info").length})</summary>
+                          {(r.qc || []).filter((x: any) => x.level === "info").map((x: any, j: number) => <div key={j}><b>{x.title}</b>: <span className="muted">{x.text}</span></div>)}</details>)}</td></tr>
                 ))}</tbody>
               </table>
             )}
@@ -100,7 +108,7 @@ export default function DataUpload() {
             <div className="kpis" style={{ marginTop: 10 }}>
               <Kpi l="Ketersediaan label ECD" v={d?.target_availability != null ? `${Math.round(d.target_availability * 100)}%` : "—"} s="jam pumps-on yang punya ECD terukur" />
               <Kpi l="PPFG versi" v={d?.ppfg_versions?.length ?? 0} s={d?.ppfg_versions?.map((v: any) => `v${v.version} ${v.status}`).join(", ")} />
-              <Kpi l="MW / Survey" v={`${d?.mud_weight_rows ?? 0} / ${d?.survey_rows ?? 0}`} s="baris Rec 04 / Rec 07" />
+              <Kpi l="MW / Survey" v={`${d?.mud_weight_rows ?? 0} / ${d?.survey_rows ?? 0}`} s="baris MW (file / manual) / stasiun survey" color={d && !d.mud_weight_rows ? "#D63A40" : undefined} />
             </div>
             <table>
               <thead><tr><th>Record</th><th>File</th><th>Baris</th><th>Rentang</th></tr></thead>
@@ -212,6 +220,67 @@ function SectionsCard({ wellId, canEdit, onSaved }: { wellId: number; canEdit: b
           <button className="pri" onClick={save}>Simpan section</button><button onClick={() => { setRows(null); setErr(null); }}>Batal</button>
         </div>
       )}
+    </div>
+  );
+}
+
+
+type MWR = { md: string; mw: string; remark: string };
+/** Tabel MW manual (DDR / mud report) untuk sumur tanpa file Rec 04 Navita. MW berlaku sejak hole depth tercapai. */
+function MudWeightCard({ wellId, canEdit, onSaved }: { wellId: number; canEdit: boolean; onSaved: () => void }) {
+  const q = useFetch<any>(() => api.get(`/wells/${wellId}/mud-weight`), [wellId]);
+  const [rows, setRows] = useState<MWR[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+  const cur: MWR[] = rows ?? (q.data?.rows || []).map((r: any) => ({ md: String(r.md), mw: String(r.mw), remark: r.remark || "" }));
+  const editing = rows !== null;
+  const set = (i: number, k: keyof MWR, v: string) => setRows(cur.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  const save = async () => {
+    setErr(null);
+    const body = cur.filter((r) => r.md !== "" || r.mw !== "").map((r) => ({ md: Number(r.md), mw: Number(r.mw), remark: r.remark || null }));
+    if (body.some((r) => !isFinite(r.md) || !isFinite(r.mw))) { setErr("Kedalaman dan MW harus angka"); return; }
+    try { await api.put(`/wells/${wellId}/mud-weight`, { rows: body }); setRows(null); setOk(true); q.reload(); onSaved(); setTimeout(() => setOk(false), 2500); }
+    catch (e: any) { setErr(e.message); }
+  };
+  const src: string | null = q.data?.source ?? null;
+  const dens: any[] = q.data?.stream_density || [];
+  return (
+    <div style={{ marginTop: 12, borderTop: "1px solid #E3E8EE", paddingTop: 10 }}>
+      <div className="row">
+        <b className="small">Mud weight</b>
+        <span className="small muted">berlaku sejak hole depth tercapai · wajib untuk ECD ⓥ · sumber: {src || "belum ada"}</span>
+        <span className="sp" />
+        {ok && <span className="small" style={{ color: "#1E9E5A" }}>tersimpan</span>}
+        {canEdit && !editing && <button onClick={() => setRows(cur.length ? cur : [{ md: "0", mw: "", remark: "" }])}>{cur.length ? "Ubah MW" : "+ Isi MW manual"}</button>}
+      </div>
+      <Err e={err || q.err} />
+      {cur.length === 0 && !editing ? <div className="small" style={{ marginTop: 6, color: "#D63A40" }}>Belum ada MW: ECD ⓥ, margin, dan deteksi yang memakai MW tidak dihitung untuk sumur ini. Isi dari DDR / mud report, atau upload file MW.</div> : (
+        <div style={{ overflowX: "auto", marginTop: 6 }}>
+          <table className="plan">
+            <thead><tr><th>Mulai hole depth (ft MD)</th><th>MW (ppg)</th><th>Sumber / catatan</th>{editing && <th />}</tr></thead>
+            <tbody>
+              {cur.map((r, i) => editing ? (
+                <tr key={i}>
+                  <td><input type="number" value={r.md} onChange={(e) => set(i, "md", e.target.value)} style={{ width: 100 }} /></td>
+                  <td><input type="number" step="0.01" value={r.mw} onChange={(e) => set(i, "mw", e.target.value)} style={{ width: 80 }} /></td>
+                  <td><input value={r.remark} onChange={(e) => set(i, "remark", e.target.value)} placeholder="mis. DDR 12 Nov / mud report" style={{ width: 260 }} /></td>
+                  <td><button className="danger" onClick={() => setRows(cur.filter((_, j) => j !== i))}>×</button></td>
+                </tr>
+              ) : (
+                <tr key={i}><td className="mono">{ft(Number(r.md))}</td><td className="mono">{n(Number(r.mw))}</td><td className="muted small">{r.remark}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          {editing && (
+            <div className="row" style={{ marginTop: 6 }}>
+              <button onClick={() => setRows([...cur, { md: "", mw: "", remark: "" }])}>+ Baris</button>
+              <button className="pri" onClick={save}>Simpan MW</button><button onClick={() => { setRows(null); setErr(null); }}>Batal</button>
+              <span className="small muted">Menyimpan mengganti seluruh tabel MW sumur ini. Upload file MW / Rec 04 berikutnya juga akan menggantinya.</span>
+            </div>
+          )}
+        </div>
+      )}
+      {dens.length > 0 && <div className="small muted" style={{ marginTop: 6 }}>Pembanding mud density in dari data streaming (median per 500 ft): {dens.map((x) => `${ft(x.md_from)} ft ${n(x.mw)}`).join(" · ")} ppg</div>}
     </div>
   );
 }

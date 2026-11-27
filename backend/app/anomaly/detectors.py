@@ -26,6 +26,7 @@ DEFAULTS = {
     "flowout_min_base_pct": 10.0,  # baseline flow out % minimum agar persentase bermakna
     "flowout_min_change_pct": 5.0, # perubahan absolut minimum (poin %)
     "pit_change_bbl": 5.0,
+    "ecd_below_mw_ppg": 0.1,     # ECD terukur < MW − x saat pompa hidup = kolom lumpur turun (korroborasi loss)
     "stationary_min": 30,
     "min_duration_min": 1.0,
 }
@@ -54,6 +55,7 @@ def _n(df: pd.DataFrame, minutes: float) -> int:
     if len(df) < 2:
         return 1
     step = df.index.to_series().diff().dt.total_seconds().median() or 30
+    step = 30.0 if not np.isfinite(step) or step <= 0 else float(step)
     return max(1, int(round(minutes * 60 / step)))
 
 
@@ -152,7 +154,12 @@ def flags(df: pd.DataFrame, p: dict) -> dict[str, tuple[pd.Series, pd.Series, pd
     fo_down = (drop >= p["loss_flowout_drop_pct"]) & (dfo >= p["flowout_min_change_pct"])
     fo_up = (-drop >= p["loss_flowout_drop_pct"]) & (-dfo >= p["flowout_min_change_pct"])
     loss = pumps & steady & (fo_down | (dpit <= -p["pit_change_bbl"]))
-    both = fo_down & (dpit <= -p["pit_change_bbl"])
+    # ECD terukur di bawah MW saat pompa hidup: tekanan annulus < kolom penuh -> level lumpur turun. Hanya penguat
+    # (bisa juga MW salah titik di batas section), jadi menaikkan loss ADVISORY -> WARNING, bukan alarm sendiri.
+    ecd_low = pumps & ((_col(df, "mw") - _col(df, "ecd")) >= p["ecd_below_mw_ppg"])
+    if "ecd_stale" in df:
+        ecd_low &= ~df["ecd_stale"].fillna(False).astype(bool)
+    both = (fo_down & (dpit <= -p["pit_change_bbl"])) | (loss & ecd_low)
     out["loss"] = (loss, pd.Series(np.where(both, "WARNING", "ADVISORY"), index=df.index), fo, fo_base)
     gain = pumps & steady & fo_up & (dpit >= p["pit_change_bbl"])
     out["influx"] = (gain, pd.Series("CRITICAL", index=df.index), fo, fo_base)
@@ -160,7 +167,8 @@ def flags(df: pd.DataFrame, p: dict) -> dict[str, tuple[pd.Series, pd.Series, pd
     # pipa diam lama
     still = (bv.abs() < 0.05) & (_col(df, "bit_depth").diff().abs().fillna(0) < 0.1)
     grp = (still != still.shift()).cumsum()
-    step = (df.index.to_series().diff().dt.total_seconds().median() or 30) if len(df) > 1 else 30
+    step = df.index.to_series().diff().dt.total_seconds().median() if len(df) > 1 else 30.0
+    step = 30.0 if not np.isfinite(step) or step <= 0 else float(step)
     dur = still.groupby(grp).cumsum() * step  # detik (langkah sebenarnya, bukan dibulatkan per menit)
     m = still & (dur / 60 >= p["stationary_min"]) & (offb > 2)
     out["differential"] = (m, pd.Series("ADVISORY", index=df.index), dur / 60, pd.Series(p["stationary_min"], index=df.index))
@@ -171,6 +179,34 @@ def flags(df: pd.DataFrame, p: dict) -> dict[str, tuple[pd.Series, pd.Series, pd
         m = (~pumps) & (ms < 0)
         out["static_mw"] = (m, pd.Series("WARNING", index=df.index), ms, pd.Series(0.0, index=df.index))
     return out
+
+
+LOSS_NOTE_NO_PWD = ("Tanpa ECD terukur (PWD): ECD ⓥ mengasumsikan kolom lumpur penuh. Saat loss level annulus turun, "
+                    "tekanan nyata bisa lebih rendah dari ECD ⓥ (\"belok kiri\", bisa < MW) — cek margin ke PP.")
+LOSS_NOTE_BELOW_MW = "ECD terukur di bawah MW: level lumpur annulus turun — cek margin ECD terukur ke PP."
+
+
+def loss_note(df: pd.DataFrame, a, b) -> dict:
+    """Catatan untuk episode loss (klien 27 Nov: saat loss ECD 'belok kiri', biasanya masih di atas PP).
+    Tanpa PWD sistem tidak melihat penurunan tekanan itu, jadi diberi tahu; overbalance statis MW − PP ditampilkan
+    sebagai cadangan yang tersisa bila kolom masih penuh."""
+    seg = df.loc[a:b]
+    ecd = _col(seg, "ecd").where(_col(seg, "ecd").between(7, 20))
+    if "ecd_stale" in seg:
+        ecd = ecd.where(~seg["ecd_stale"].fillna(False).astype(bool))
+    ms = _col(seg, "margin_static").dropna()
+    ob = ms.median() if len(ms) else np.nan
+    extra = {"overbalance_static": None if pd.isna(ob) else round(float(ob), 2)}
+    tail = "" if pd.isna(ob) else f" Overbalance statis MW − PP ≈ {ob:.2f} ppg (bila kolom penuh)."
+    if ecd.notna().mean() < 0.5:
+        return {"no_pwd": True, "note": LOSS_NOTE_NO_PWD + tail, **extra}
+    low = (_col(seg, "mw") - ecd) >= DEFAULTS["ecd_below_mw_ppg"]
+    if low.any():
+        mg = (ecd - _col(seg, "lower_bit")).dropna()
+        m = mg.min() if len(mg) else np.nan
+        t2 = "" if pd.isna(m) else f" Margin ECD terukur ke PP min {m:.2f} ppg."
+        return {"no_pwd": False, "note": LOSS_NOTE_BELOW_MW + t2, **extra}
+    return {"no_pwd": False, **extra}
 
 
 def episodes(df: pd.DataFrame, fl: dict, p: dict) -> list[dict]:
@@ -208,6 +244,7 @@ def episodes(df: pd.DataFrame, fl: dict, p: dict) -> list[dict]:
                 "baseline": None if pd.isna(base.loc[a]) else float(base.loc[a]),
                 "state": None if pd.isna(st.loc[a]) else str(st.loc[a]),
                 "rec": RECS[key],
+                **(loss_note(df, a, b) if key == "loss" else {}),
             })
     out.sort(key=lambda d: d["start"])
     return out

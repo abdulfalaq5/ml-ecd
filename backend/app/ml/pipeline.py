@@ -51,6 +51,9 @@ def labeled(df: pd.DataFrame, need_mw: bool = True) -> pd.DataFrame:
     m = df["ecd"].between(7, 20) & df["state"].isin(PUMPS_ON_STATES) & df["flow_in"].notna() & df["spp"].notna()
     if need_mw:
         m &= df["mw"].between(7, 20)
+        # ECD terukur < MW saat pompa hidup = kolom lumpur tidak penuh (loss) atau MW salah titik: bukan ECD sirkulasi
+        # normal (ECD = MW + APL, APL ≥ 0). Tidak dijadikan label, supaya model tidak belajar ECD di bawah MW.
+        m &= df["ecd"] >= df["mw"] - ECD_BELOW_MW_TOL
     # Catatan: label 'beku' (ecd_stale, ±5–7 mnt setelah pompa hidup lagi) SENGAJA tetap dipakai. Uji LOWO 5 sumur
     # (24 Nov 2026): membuangnya menaikkan MAE rata-rata 0,303 → 0,320 ppg, karena nilai sebelum sambung pipa ≈ ECD
     # sirkulasi sesudahnya. Penanda beku dipakai di alert/margin dan kalibrasi ramalan (core/forecast.py).
@@ -108,6 +111,9 @@ class MWOnly:
         return out
 
 
+ECD_BELOW_MW_TOL = 0.05     # ppg; toleransi resolusi MW/ECD
+
+
 class TreeModel:
     """Model pohon untuk ΔECD = ECD − MW (bagian hidraulik/APL), lalu ECD = MW + Δ.
 
@@ -127,7 +133,8 @@ class TreeModel:
 
     def predict(self, X):
         X = X.astype(float)
-        return self.m.predict(X.fillna(self.med)) + X["mw"].to_numpy()
+        # pompa hidup: rugi gesek annulus tidak bisa negatif, jadi ECD ⓥ ≥ MW (keluhan klien 27 Nov: saat loss ECD ⓥ < MW)
+        return np.maximum(self.m.predict(X.fillna(self.med)), 0.0) + X["mw"].to_numpy()
 
 
 def build(algo: str):

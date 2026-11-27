@@ -20,6 +20,64 @@ KINDS = {"daily": "Laporan Harian ECD", "event": "Laporan Event / Studi Kasus",
          "rathole": "Studi Kasus Rathole (H1–H3)"}
 
 
+# Aturan state (app/core/features.derive_state), ditulis untuk pembaca laporan. Ambang dari konfigurasi sistem.
+STATE_RULES = {
+    "DRILL_ROT": "pompa hidup, bit di dasar, putar, ROP > 0",
+    "SLIDE": "pompa hidup, bit di dasar, tanpa putar, ROP > 0",
+    "REAM": "pompa hidup, bit di atas dasar, pipa bergerak, putar",
+    "WASH": "pompa hidup, bit di atas dasar, pipa bergerak, tanpa putar",
+    "CIRC": "pompa hidup, pipa diam (atau di dasar tanpa ROP)",
+    "TRIP": "pompa mati, pipa bergerak",
+    "STATIC": "pompa mati, pipa diam (stand down, sambung pipa, flow check)",
+    "UNKNOWN": "kanal bit depth & flow kosong",
+}
+
+
+STATE_MAX_GAP_S = 300      # sampel berlaku sampai sampel berikutnya, maks 5 menit; jeda lebih lama = tanpa data
+
+
+def state_table(db: Session, well: Well, t0, t1) -> list[dict]:
+    """Jam per state operasi (berbobot durasi). Data surface di-bucket 30 detik (resolusi training), tiap baris diberi
+    satu state (app/core/features.derive_state) dan berlaku sampai baris berikutnya, maks STATE_MAX_GAP_S. Jadi rekaman
+    jarang (rig LAS PDSI ±1 sampel/menit) tidak terhitung sebagai 'tanpa data'. Sisa periode = tanpa data."""
+    from ..config import get_settings
+    from ..core.data import load_time, time_range
+    from ..core.features import PUMPS_ON_STATES, STATES, derive_state
+    cfg = get_settings()
+    lo, hi = time_range(db, well.id)
+    if lo is None:
+        return []
+    a = pd.Timestamp(t0 or lo)
+    b = pd.Timestamp(t1 or hi)
+    df = load_time(db, well.id, a, b, bucket_s=30)
+    if df.empty:
+        return []
+    st = derive_state(df)
+    nxt = df.index.to_series().shift(-1).fillna(min(b, df.index[-1] + pd.Timedelta(seconds=30)))
+    dur = (nxt - df.index.to_series()).dt.total_seconds().clip(lower=0, upper=STATE_MAX_GAP_S)
+    ecd_ok = df["ecd"].between(7, 20) if "ecd" in df else pd.Series(False, index=df.index)
+    span_h = max((b - a).total_seconds() / 3600, 0)
+    order = ["DRILL_ROT", "SLIDE", "REAM", "WASH", "CIRC", "TRIP", "STATIC", "UNKNOWN"]
+    hours = (dur.groupby(st).sum() / 3600)
+    rows, used = [], 0.0
+    for k in sorted(hours.index, key=lambda x: order.index(x) if x in order else 99):
+        h = float(hours[k])
+        used += h
+        rows.append({"state": k, "operasi": STATES.get(k, k), "pompa": "hidup" if k in PUMPS_ON_STATES else "mati",
+                     "aturan": STATE_RULES.get(k, ""), "jam": round(h, 1),
+                     "persen": round(100 * h / span_h, 1) if span_h else None,
+                     "jam_ecd_terukur": round(float(dur[(st == k) & ecd_ok].sum()) / 3600, 1)})
+    gap = span_h - used
+    if gap >= 0.1:
+        rows.append({"state": "—", "operasi": "Tanpa data (jeda rekaman / di luar rentang data)", "pompa": "", "aturan": "",
+                     "jam": round(gap, 1), "persen": round(100 * gap / span_h, 1) if span_h else None, "jam_ecd_terukur": 0.0})
+    rows.append({"state": "", "operasi": f"Cara hitung: data surface per 30 detik diberi satu state; tiap baris berlaku sampai "
+                 f"baris berikutnya (maks {STATE_MAX_GAP_S // 60} menit). Ambang: flow > {cfg.flow_min_gpm:g} gpm, di dasar ≤ "
+                 f"{cfg.on_bottom_ft:g} ft dari hole depth, bergerak > {cfg.block_move_ft_s:g} ft/s, putar > {cfg.rpm_min:g} RPM.",
+                 "pompa": "", "aturan": "", "jam": None, "persen": None, "jam_ecd_terukur": None})
+    return rows
+
+
 def build_summary(db: Session, kind: str, well: Well | None, t0: datetime | None, t1: datetime | None) -> tuple[dict, pd.DataFrame | None]:
     s: dict = {"kind": kind, "title": KINDS.get(kind, kind), "well": well.name if well else None,
                "period": [t0.isoformat() if t0 else None, t1.isoformat() if t1 else None]}
@@ -39,6 +97,7 @@ def build_summary(db: Session, kind: str, well: Well | None, t0: datetime | None
                 "margin_low_min": f(df["margin_low"].min()) if "margin_low" in df else None,
                 "level_minutes": {k: round(int(v) * step / 60) for k, v in df["level"].value_counts().items()},
                 "state_minutes": {k: round(int(v) * step / 60) for k, v in df["state"].value_counts().items()},
+                "state_table": state_table(db, well, t0, t1),
                 "detections": [{k: d[k] for k in ("start", "level", "label", "md", "rec")} for d in r["detections"]][:60],
                 "model": f"ecd-{r['model'].algo} v{r['model'].version} ({r['model'].status})" if r["model"] else None,
                 "ppfg": f"Rec 03 v{r['ppfg'].version} ({r['ppfg'].status})" if r["ppfg"] else "belum ada PPFG approved",
@@ -249,7 +308,7 @@ def to_excel(summary: dict, frame: pd.DataFrame | None) -> bytes:
             pd.DataFrame(summary["detections"]).to_excel(xw, "Deteksi", index=False)
         if summary.get("events"):
             pd.DataFrame(summary["events"]).to_excel(xw, "Event", index=False)
-        for key, sheet in (("phase1_daily", "Fase 1 harian (ECD terukur)"), ("phase2_daily", "Fase 2 harian (rathole)"),
+        for key, sheet in (("state_table", "Jam per state operasi"), ("phase1_daily", "Fase 1 harian (ECD terukur)"), ("phase2_daily", "Fase 2 harian (rathole)"),
                            ("zone_table", "Indikasi per zona"), ("caveats", "Catatan")):
             if summary.get(key):
                 v = summary[key]

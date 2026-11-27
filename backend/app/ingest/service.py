@@ -19,6 +19,11 @@ from .parser import EmptyFile, ParsedTable, canonicalize, iter_files, mnemonics,
 log = logging.getLogger("ingest")
 
 REQUIRED_RIG = ["bit_depth", "hole_depth", "hookload", "spp", "flow_in", "rpm", "torque", "wob", "rop"]
+CRITICAL_RIG = ["bit_depth", "hole_depth", "flow_in"]          # tanpa ini file time-based hampir tidak berguna
+LABEL = {"bit_depth": "bit depth", "hole_depth": "hole depth", "flow_in": "flow in", "hookload": "hookload", "spp": "SPP",
+         "rpm": "RPM", "torque": "torque", "wob": "WOB", "rop": "ROP", "ecd": "ECD terukur", "mud_dens_in": "mud density in",
+         "block_pos": "block position", "active_pit": "active pit", "flow_out_pct": "flow out %", "trip_tank": "trip tank",
+         "gain_loss": "gain/loss", "anp": "annular pressure", "actc": "activity code"}
 
 
 def _copy_upsert(table: str, key_cols: list[str], df: pd.DataFrame, mode: str) -> int:
@@ -60,14 +65,29 @@ def qc_checks(pt: ParsedTable, well: Well) -> list[dict]:
     def add(level, title, txt):
         out.append({"level": level, "title": title, "text": txt})
 
+    for lvl, title, txt in pt.notes:
+        add(lvl, title, txt)
     if pt.record in (1, 2):
         present = [c for c in REQUIRED_RIG if c in df and df[c].notna().any()]
         miss = [c for c in REQUIRED_RIG if c not in present]
         if pt.record == 1:
+            crit = [c for c in CRITICAL_RIG if c not in present]
+            if crit:
+                add("error", "Kanal kunci tidak terbaca",
+                    f"{', '.join(LABEL.get(c, c) for c in crit)} tidak ditemukan → hole depth / state operasi / ECD ⓥ tidak bisa "
+                    "dihitung. Kemungkinan nama kanal belum dikenal (lihat 'Tag tidak dipetakan'); kirim contoh file ke admin.")
             if miss:
                 add("warn", "Fitur wajib model", "tidak tersedia/kosong: " + ", ".join(miss))
             else:
                 add("ok", "Fitur wajib model", "semua tersedia: " + ", ".join(present))
+            read = [f"{LABEL.get(k, k)} ← {v}" for k, v in pt.mapped.items()]
+            add("info", "Kanal terbaca", "; ".join(read) if read else "tidak ada")
+            if pt.basis == "time" and "ts" in df and len(df):
+                now = pd.Timestamp.now(tz="UTC")
+                if df["ts"].max() > now + pd.Timedelta(minutes=30):
+                    add("warn", "Waktu di masa depan",
+                        f"data sampai {df['ts'].max().tz_convert(get_settings().display_tz):%Y-%m-%d %H:%M} WIB (lebih dari sekarang). "
+                        "Kemungkinan zona waktu file salah: upload ulang dengan pilihan zona waktu yang benar (mode replace).")
         if "actc" in df and df["actc"].notna().any() and (df["actc"].fillna(0) == 0).all():
             add("warn", "ACTC = 0 di seluruh file", "operating state diturunkan dari flow, RPM, bit vs hole depth, block")
         for c in ("active_pit", "gain_loss", "flow_out_pct"):
@@ -170,6 +190,11 @@ def store(db: Session, well: Well, pt: ParsedTable, sha: str, user: str, mode: s
             w = wid.mode().iloc[0]
             if w != well.name and w not in (well.aliases or []):
                 well.aliases = [*(well.aliases or []), w]
+    if pt.record == 1 and pt.basis == "time" and not db.scalar(select(func.count()).select_from(MudWeight)
+                                                                  .where(MudWeight.well_id == well.id)):
+        rec.qc = [*rec.qc, {"level": "warn", "title": "Mud weight belum ada",
+                            "text": "ECD ⓥ belum bisa dihitung untuk sumur ini. Isi MW manual di Data & Upload → Mud weight, "
+                                    "atau upload file MW (Rec 04)."}]
     db.add(AuditLog(username=user, action="ingest",
                     detail=f"{well.name}: {pt.filename} Rec {pt.record:02d} {pt.basis} {rec.rows} baris"))
     db.commit()
@@ -177,7 +202,9 @@ def store(db: Session, well: Well, pt: ParsedTable, sha: str, user: str, mode: s
 
 
 def ingest_bytes(db: Session, well: Well, filename: str, content: bytes, user: str, mode: str = "append",
-                 force: bool = False) -> list[dict]:
+                 force: bool = False, source_tz: str | None = None) -> list[dict]:
+    """source_tz: zona waktu kolom waktu tanpa offset (default WIB dari setting; 'UTC' untuk file SLB/Halliburton yang
+    ditulis dalam UTC). Kolom waktu yang membawa offset (Z, +07:00) selalu dibaca sesuai offset-nya."""
     settings = get_settings()
     results = []
     updir = Path(settings.upload_dir) / well.name
@@ -193,7 +220,7 @@ def ingest_bytes(db: Session, well: Well, filename: str, content: bytes, user: s
             results.append({"file": name, "status": "duplicate", "message": "sudah pernah di-upload"})
             continue
         try:
-            pt = canonicalize(parse_bytes(name, b), settings.source_tz)
+            pt = canonicalize(parse_bytes(name, b), source_tz or settings.source_tz)
             rec = store(db, well, pt, sha, user, mode)
             results.append({"file": name, "status": rec.status, "record": rec.record, "basis": rec.basis,
                             "fmt": rec.fmt, "rows": rec.rows, "qc": rec.qc, "id": rec.id})

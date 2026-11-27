@@ -144,6 +144,7 @@ def connection_stats(frame: pd.DataFrame, min_n: int = 5) -> dict | None:
     if frame.empty or "hole_depth" not in frame:
         return None
     step = frame.index.to_series().diff().dt.total_seconds().median() or 30
+    step = 30.0 if not np.isfinite(step) or step <= 0 else float(step)
     off = ((frame["flow_in"] < get_settings().flow_min_gpm) & ((frame["hole_depth"] - frame["bit_depth"]) < 60)).fillna(False)
     grp = (off != off.shift()).cumsum()
     seg = frame[off].groupby(grp[off])

@@ -18,6 +18,7 @@ import Pengaturan from "./pages/Pengaturan";
 import StudiRathole from "./pages/StudiRathole";
 import Panduan from "./pages/Panduan";
 import Ramalan from "./pages/Ramalan";
+import TripPerformance from "./pages/TripPerformance";
 
 function Guard() {
   const { user } = useApp();
@@ -36,6 +37,7 @@ function Guard() {
         <Route path="/laporan" element={<Laporan />} />
         <Route path="/rathole" element={<StudiRathole />} />
         <Route path="/ramalan" element={<Ramalan />} />
+        <Route path="/trip" element={<TripPerformance />} />
         <Route path="/panduan" element={<Panduan />} />
         <Route path="/pengaturan" element={<Pengaturan />} />
         <Route path="*" element={<Navigate to="/" replace />} />

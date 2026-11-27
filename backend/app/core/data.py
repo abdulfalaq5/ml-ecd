@@ -59,7 +59,8 @@ def load_time(db: Session, well_id: int, t0: datetime | None = None, t1: datetim
             if c in r2:
                 # ECD/ANP dari Rec 02; file template (Rec 01 + ECD, mis. BEKA) jadi cadangan
                 out[c] = r2[c].reindex(out.index).combine_first(r1[c]) if c in r1 else r2[c].reindex(out.index)
-    return out.sort_index()
+    # kanal yang kosong total di rentang ini (mis. block position tidak ada di export SLB/Halliburton) terbaca None/object
+    return out.apply(pd.to_numeric, errors="coerce").astype(float).sort_index()
 
 
 def load_depth_profile(db: Session, well_id: int, record: int = 2, step_ft: float = 10.0) -> pd.DataFrame:

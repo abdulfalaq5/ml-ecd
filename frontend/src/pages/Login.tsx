@@ -31,7 +31,7 @@ export default function Login() {
         <form className="card" onSubmit={submit}>
           <div className="row" style={{ gap: 12 }}>
             <RigIcon size={36} />
-            <div><b style={{ fontSize: 19 }}>ECD Monitor</b><div className="muted small">PHR Drilling · Nowcast ECD berbasis ML</div></div>
+            <div><b style={{ fontSize: 19 }}>Paningal Sense</b><div className="muted small">ECD & Hole Condition · PHR Drilling</div></div>
           </div>
           <div className="muted small" style={{ marginTop: -2 }}>Masuk untuk melanjutkan</div>
           <label className="f">Username<input value={u} onChange={(e) => setU(e.target.value)} autoFocus autoComplete="username" /></label>

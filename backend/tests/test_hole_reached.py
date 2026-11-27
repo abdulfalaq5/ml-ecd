@@ -73,3 +73,16 @@ def test_return_to_previous_depth_after_false_reset_not_blocked_by_bit():
     flow = _ser([0] * 180)
     r = hole_reached_robust(hole, bit=bit, flow=flow)
     assert r.iloc[159] == 779 and r.iloc[-1] == 3328
+
+
+def test_depth_shift_without_data_gap_not_confirmed():
+    """GW339 15 Nov: hole & bit 'shifting' 5.652 → 9.909 ft dengan pompa hidup, tanpa jeda data → tetap 5.652.
+    Data yang lanjut sesudah jeda panjang di kedalaman lebih dalam tetap diterima lewat konfirmasi."""
+    hole = _ser([5652] * 10 + [9909] * 40)
+    flow = _ser([300] * 50)
+    r = hole_reached_robust(hole, bit=hole, flow=flow)
+    assert r.max() == 5652
+    idx = hole.index[:10].append(hole.index[10:] + pd.Timedelta(hours=12))   # jeda 12 jam lalu data lanjut
+    gap = pd.Series(hole.to_numpy(), index=idx)
+    r2 = hole_reached_robust(gap, bit=gap, flow=pd.Series(300.0, index=idx))
+    assert r2.iloc[-1] == 9909

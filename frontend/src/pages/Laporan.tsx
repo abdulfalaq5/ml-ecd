@@ -68,7 +68,12 @@ export default function Laporan() {
                 <Kpi l="Durasi data" v={`${s.data_minutes ?? 0} mnt`} s={s.model || "tanpa model"} />
               </div>
               <div className="row small" style={{ marginBottom: 10 }}>{Object.entries(s.level_minutes || {}).map(([k, v]: any) => <span key={k} className="row" style={{ gap: 4 }}><Level v={k} />{v} mnt</span>)}</div>
-              <div className="row small muted" style={{ marginBottom: 10 }}>State: {Object.entries(s.state_minutes || {}).map(([k, v]: any) => `${k} ${v} mnt`).join(" · ")}</div>
+              {s.state_table ? (<>
+                <h3 style={{ marginTop: 4 }}>Jam per state operasi</h3>
+                <table><thead><tr><th>State</th><th>Operasi</th><th>Pompa</th><th>Aturan (data surface)</th><th>Jam</th><th>%</th><th>Jam ECD terukur</th></tr></thead>
+                  <tbody>{s.state_table.filter((r: any) => r.jam != null).map((r: any, i: number) => <tr key={i}><td className="mono">{r.state}</td><td>{r.operasi}</td><td>{r.pompa}</td><td className="small muted">{r.aturan}</td><td className="mono">{n(r.jam, 1)}</td><td className="mono">{n(r.persen, 1)}</td><td className="mono">{n(r.jam_ecd_terukur, 1)}</td></tr>)}</tbody></table>
+                <div className="small muted" style={{ margin: "4px 0 10px" }}>{s.state_table.find((r: any) => r.jam == null)?.operasi}</div>
+              </>) : <div className="row small muted" style={{ marginBottom: 10 }}>State: {Object.entries(s.state_minutes || {}).map(([k, v]: any) => `${k} ${v} mnt`).join(" · ")}</div>}
               <div className="small muted">PPFG: {s.ppfg}</div>
               <h3 style={{ marginTop: 12 }}>Deteksi ({s.detections?.length || 0})</h3>
               <table><thead><tr><th>Waktu</th><th>Level</th><th>Indikator</th><th>MD</th></tr></thead>

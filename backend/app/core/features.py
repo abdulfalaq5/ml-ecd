@@ -68,7 +68,9 @@ def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float
     Bila `bit` / `flow` diberikan: lubang baru hanya terbentuk di bit dan saat pompa hidup. Pendalaman ditolak bila bit
     > `bit_tol_ft` di atas kedalaman baru (BLSO-717 25 Nov: hole 1.026 → 3.633 ft saat bit di 754 ft) atau flow
     < `flow_min` (BEKA-255 30 Sep: hole & bit "naik" 3.061 → 4.470 ft dengan pompa mati, ROP 1.900 ft/jam; pengeboran
-    nyata 1 Okt dari 3.061 ke 4.144 ft). Hanya berlaku di atas puncak yang pernah dicapai. NaN tidak menolak."""
+    nyata 1 Okt dari 3.061 ke 4.144 ft). Hanya berlaku di atas puncak yang pernah dicapai. NaN tidak menolak.
+    Dengan `bit` / `flow`, lompatan > base_ft + ft_per_h × jeda sejak sampel sebelumnya tidak dikonfirmasi (GW339 15 Nov
+    9.909 ft = shifting depth tracking); konfirmasi hanya untuk data yang lanjut sesudah jeda."""
     v = hole.to_numpy(dtype=float)
     t = hole.index.asi8 / 1e9 if isinstance(hole.index, pd.DatetimeIndex) else np.arange(len(v), dtype=float) * 30
     out = np.full(len(v), np.nan)
@@ -76,6 +78,10 @@ def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float
     q = flow.reindex(hole.index).to_numpy(dtype=float) if flow is not None else np.full(len(v), np.nan)
     qmin = get_settings().flow_min_gpm if flow_min is None else flow_min
     cur, t_cur, pend, low_since, low, peak = np.nan, None, 0, None, [], -np.inf
+    # jeda sejak sampel hole sebelumnya (detik): lompatan besar tanpa jeda data tidak bisa dibor -> bukan lubang baru
+    ok = ~np.isnan(v)
+    t_prev = pd.Series(np.where(ok, t, np.nan)).ffill().shift(1).to_numpy()
+    dt_prev = np.where(np.isnan(t_prev), np.inf, t - t_prev)
     for i, x in enumerate(v):
         if not np.isnan(cur) and cur > 100 and x < 10:  # kanal kosong terbaca 0 saat sumur sudah dalam: bukan data
             x = np.nan
@@ -105,6 +111,13 @@ def hole_reached_robust(hole: pd.Series, base_ft: float = 200.0, ft_per_h: float
                 t_cur, pend = t[i], 0
             elif x - cur <= base_ft + ft_per_h * min(max(0.0, t[i] - t_cur), 360.0) / 3600:  # maks ±300 ft; lebih → konfirmasi
                 cur, t_cur, pend = x, t[i], 0
+            elif (pend == 0 and x > peak + 1 and not (np.isnan(b[i]) or np.isnan(q[i]))
+                  and x - cur > base_ft + ft_per_h * dt_prev[i] / 3600):
+                # GW339 14–16 Nov: bit tracking "shifting" 5.652 → 9.909 ft (klien 27 Nov: bukan pengeboran; hookload
+                # ±20 klb, pompa mati lalu sempat hidup). Tanpa jeda data, lompatan sebesar ini mustahil dibor: tolak,
+                # jangan dikonfirmasi. Dicek di sampel pertama lompatan saja: data yang lanjut
+                # sesudah jeda (dt besar) tetap lewat jalur konfirmasi.
+                pend = 0
             else:
                 pend += 1
                 if pend >= confirm:

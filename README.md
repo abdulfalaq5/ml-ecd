@@ -1,4 +1,4 @@
-# ECD Monitor — Prediksi ECD Real-Time Berbasis Machine Learning
+# Paningal Sense — Prediksi ECD Real-Time Berbasis Machine Learning
 
 Sistem monitoring **Equivalent Circulating Density (ECD)** untuk operasi pengeboran. ECD diestimasi dari parameter permukaan rig (flow, SPP, RPM, hookload, kedalaman, MW, survey). Estimasi ini disebut **ECD ⓥ** (virtual ECD) dan dipakai pada run tanpa sensor PWD/ECD downhole, misalnya clean-out, reaming, dan BHA rotary. Hasilnya dibandingkan dengan PPFG untuk margin dan alert, dan dilengkapi detektor indikasi masalah lubang (pack-off, tight spot, loss, influx, stuck pipe).
 
@@ -30,7 +30,7 @@ Semua komponen berjalan di **Docker**. Server tidak perlu Python, Node, atau Pos
 
 | Area | Isi |
 |---|---|
-| **Ingest data** | LAS 2.0 & CSV/ASCII export Navita (Rec 01 rig, 02 ECD, 03 PPFG, 04 mud weight, 07 survey), LAS/CSV rig, file `.zip`. Masuk lewat upload browser, folder pantau, atau baris perintah. QC otomatis per file. |
+| **Ingest data** | LAS 2.0 & CSV/ASCII export Navita (Rec 01 rig, 02 ECD, 03 PPFG, 04 mud weight, 07 survey), LAS/CSV rig, **tanpa Navita**: time-based SLB / Halliburton (LAS / CSV / Excel; alias kanal umum, tanggal+jam terpisah, dd/mm, epoch, offset zona waktu, pilihan WIB/UTC, satuan metrik dikonversi), survey generik (MD/Inc/Azi; TVD & DLS minimum curvature), tabel MW generik, dan **MW manual** di aplikasi. File `.zip`. Masuk lewat upload browser, folder pantau, atau baris perintah. QC otomatis per file (kanal kunci tidak terbaca = merah, MW belum ada, waktu di masa depan, tanggal ambigu). |
 | **Operating state** | DRILL_ROT, SLIDE, REAM, WASH, CIRC, TRIP, STATIC, diturunkan dari flow, RPM, bit vs hole depth, dan pergerakan block. |
 | **Model ML** | Nowcast ECD dari fitur permukaan saja. Eksperimen A (MW-only, persistence), B Random Forest, C XGBoost, D LightGBM. Validasi grouped per sumur: *leave-one-well-out* (LOWO) + sumur blind tetap. Interval prediksi, deteksi out-of-distribution, promotion gate 6/6, dan status candidate → shadow → production + rollback. |
 | **Margin & alert** | Margin terhadap FG_min (di bit dan titik terlemah open hole) dan batas bawah max(PP, SFG). Level **NORMAL / ADVISORY / WARNING / CRITICAL / UNAVAILABLE**, plus badge *low confidence*. |
@@ -38,6 +38,7 @@ Semua komponen berjalan di **Docker**. Server tidak perlu Python, Node, atau Pos
 | **Mode cut-off** | Analisis retrospektif: engine hanya melihat data ≤ waktu T. Hasilnya dibandingkan dengan event terkonfirmasi untuk menghitung *lead time*. |
 | **PPFG berversi** | Rec 03 masuk sebagai *draft*. Margin hanya memakai versi yang sudah **approved**; koreksi dibuat sebagai salinan versi baru. |
 | **Zona rathole & studi kasus** | Zona open hole di bawah shoe (mis. casing di-set lebih awal) per sumur: diarsir di Profil Depth, ditandai di Live Monitor, dan setiap indikasi diberi label zona. Halaman Studi Kasus Rathole membagi analisis jadi dua fase: fase 1 menguji ECD ⓥ terhadap ECD terukur, fase 2 memantau tren hidraulik dan indikasi di zona rathole. |
+| **Trip performance** | KPI tripping ala laporan SLB (bit ≥ 100 ft di atas dasar, slips dari hookload ≈ berat block): stand/joint per jam (siklus out-of-slip → out-of-slip, rolling 5), in-slip & moving time per stand vs MD per crew AM/PM, gross trip speed, cased / open hole, dibandingkan dengan target manual (P75 / P25, gross 525 ft/jam) + interpretasi, hookload vs depth. Mode stand DP (double ±62 ft) atau joint casing. Butuh data ≤ 10 detik/sampel. Halaman 8 · Trip Performance. |
 | **Laporan** | Harian, event/studi kasus, evaluasi model, QC data, studi kasus rathole. Ekspor Excel/cetak. Narasi dibuat otomatis: **dibantu AI bila `ANTHROPIC_API_KEY` diisi**, atau dari templat angka laporan (tanpa AI) bila kosong / AI gagal. Ke AI hanya dikirim ringkasan angka. |
 | **Ramalan ECD (roadmap)** | Ramalan ECD ke depan berbasis rencana operasi, seperti roadmap T&D tetapi berbasis waktu. Model ECD ⓥ / hidraulika annulus power-law (aktif bila PV & YP diisi; string dari katalog bending) dikalibrasi ke ECD terukur 1 jam terakhir, + respons RPM dan WOB → ROP → cutting. Sambung pipa disisipkan dari statistik sumur. Uji mundur 5 sumur: ECD tertinggi 6 / 12 jam meleset median 0,29 / 0,42 ppg (vs 0,35 / 0,50 bila "ECD tetap"). |
 | **Estimasi bending & side force** | Bending moment (E·I·κ dari survey), bending stress vs **batas bending sambungan**, side force per joint, dan hookload model pick-up/slack-off (broomstick, friction factor dikalibrasi ke hookload terukur). Untuk drill string, run casing, dan run liner. Konfigurasi dari **katalog komponen + preset per section**, dipilih per run "mulai hole depth X" seperti MW Rec 04. Saat ini lewat script `tools/bending` (output CSV/LAS per 30 detik); rencana masuk aplikasi ada di [`docs/BENDING_INTEGRATION.md`](docs/BENDING_INTEGRATION.md). **Estimasi, bukan pengukuran sensor downhole.** |
@@ -79,10 +80,11 @@ File Navita/rig (.las/.csv/.zip)
               Rec 01/02 → ts_data (time) / depth_data   Rec 03 → PPFG draft   Rec 04 → MW   Rec 07 → survey
    ▼
 2. FITUR      bucket 30 dtk · gabung Rec 01 + Rec 02 · operating state · MW as-of hole depth tercapai − 10 ft
-              (hole tercapai tahan glitch: lubang baru hanya di bit & saat pompa hidup; reset bila koreksi depth)
+              (hole tercapai tahan glitch: lubang baru hanya di bit & saat pompa hidup, lompatan tanpa jeda data yang mustahil
+               dibor ditolak (shifting depth tracking); reset bila koreksi depth)
               · TVD/inklinasi dari survey · fitur permukaan (flow, SPP, RPM, WOB, ROP, hookload, torque, …)
    ▼
-3. ECD ⓥ      model aktif (production → shadow → candidate) memprediksi ΔECD = ECD − MW, lalu ECD = MW + Δ
+3. ECD ⓥ      model aktif (production → shadow → candidate) memprediksi ΔECD = ECD − MW, lalu ECD = MW + Δ (Δ ≥ 0: pompa hidup tidak pernah di bawah MW)
               + interval prediksi per state · flag OOD · pompa mati → ECD dinamis tidak dihitung
    ▼
 4. MARGIN     terhadap PPFG approved: FG_min − ECD (bit & open hole), ECD − max(PP,SFG), MW vs batas bawah saat pumps off
@@ -100,7 +102,7 @@ ECD acuan = **ECD terukur** (PWD) bila ada; selain itu **ECD ⓥ**. Bila pompa h
 Sumur peran "train" (ber-label ECD PWD)          Sumur peran "blind" (tidak pernah ikut training)
           │                                                 │
           ▼                                                 │
-  Baris berlabel: ECD 7–20 ppg, pompa hidup, flow & SPP ada, MW ada, tanpa glitch depth
+  Baris berlabel: ECD 7–20 ppg, pompa hidup, flow & SPP ada, MW ada, ECD ≥ MW − 0,05 (bukan loss), tanpa glitch depth
           │                                                 │
           ├─► LOWO: tiap sumur ditahan bergantian → MAE per sumur, CI bootstrap, metrik per state
           │        (dipakai untuk MEMILIH model)            │
@@ -208,12 +210,13 @@ docker compose up -d --build
 
 ### 5.3 Catatan data
 
-- MW wajib untuk ECD ⓥ (ECD = MW + komponen hidraulik). Sumur tanpa Rec 04 tidak ikut training dan statusnya UNAVAILABLE saat pompa hidup. MW bisa ditambahkan dengan CSV kecil berformat Rec 04:
+- MW wajib untuk ECD ⓥ (ECD = MW + komponen hidraulik). Sumur tanpa MW tidak ikut training dan statusnya UNAVAILABLE saat pompa hidup. MW bisa diisi **manual** di Data & Upload → kartu sumur → Mud weight (mulai hole depth → MW ppg; `PUT /api/wells/{id}/mud-weight`, peran Admin / Mud Eng / RTO / Data/ML), atau di-upload sebagai tabel CSV / Excel:
   ```
-  DEPTH,MUDWEIGHT,REMARK
+  Depth (ft),MW (ppg),Remark
   0,10.2,sumber: laporan harian ...
   ```
-  dengan nama file mengandung `record_04`, misalnya `MW_manual_record_04.csv`.
+  Satuan SG / g/cm³ / kg/m³ dikonversi bila tertulis. Tabel manual atau file MW berikutnya mengganti seluruh tabel MW sumur.
+- Alias kanal SLB / Halliburton di `backend/app/mnemonics.yaml` belum diverifikasi dengan file asli; cek "Tag tidak dipetakan" di QC upload pertama.
 - ECD = 0 di file berarti tidak ada sensor, dan disimpan sebagai kosong.
 - Export LAS rig (tab) menulis nilai 0 sebagai `-999.25`. Parser mengisi 0 untuk kanal operasional (flow, RPM, WOB, …).
 

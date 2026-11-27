@@ -1,3 +1,5 @@
+# Alias SLB / Halliburton (HKLD, SWOB, TQA, TFLO, BDEP, …) ditambahkan 28 Nov 2026 dari nama kanal umum; BELUM
+# diverifikasi dengan file asli mereka. Cek "Tag tidak dipetakan" di QC upload pertama.
 # Mapping eksplisit tag asli -> canonical field (docs/CHANNELS.md §0.1, §9).
 # `mnem`: dicocokkan ke mnemonic LAS / kolom CSV (case-insensitive, persis).
 # `desc`: dicocokkan ke deskripsi LAS / header CSV Navita bila mnemonic tidak dikenal (mis. SPARE1/SPARE2 rig).
@@ -7,27 +9,27 @@ time_index: [dtsrv, TIME, "Date time server"]
 depth_index: [DEPTH, depth]
 
 rig:
-  bit_depth:    {mnem: [DBTM, DEPTBITM, "BIT DEPTH"], desc: ["Bit Depth (ftMD)", "Depth Bit (meas)"]}
+  bit_depth:    {mnem: [DBTM, DEPTBITM, "BIT DEPTH", BDEP, BITDEP, BIT_DEPTH, DBIT], desc: ["Bit Depth (ftMD)", "Depth Bit (meas)", "Bit Depth", "Bit Position", "Bit MD"]}
   bit_tvd:      {mnem: [DBTV], desc: ["Bit Depth (TVD)", "Depth Bit (vt)"]}
-  hole_depth:   {mnem: [DMEA, DEPTMEAS, "MEASURE DEPTH"], desc: ["Hole Depth (ftMD)", "Depth Hole (meas)"]}
+  hole_depth:   {mnem: [DMEA, DEPTMEAS, "MEASURE DEPTH", HDEP, HOLEDEP, HOLE_DEPTH, HDTH, DHOL], desc: ["Hole Depth (ftMD)", "Depth Hole (meas)", "Hole Depth", "Total Depth", "Measured Depth Hole", "Hole MD"]}
   hole_tvd:     {mnem: [DVER, DEPTVERT, TVD], desc: ["Hole Depth (TVD)", "TVD Depth (ftMD)", "Depth Hole (vert)", "Depth Hole (vt)"]}
-  block_pos:    {mnem: [BPOS, BLKPOS, "BLOCK HEIGHT"], desc: ["Block Position (ft)", "Block Position"]}
-  rop:          {mnem: [ROP, ROPA, "ROP AVG"], desc: ["ROP (ft/h)", "Rate of Penetration (avg)"]}
-  hookload:     {mnem: [HKLA, HOOKLOAD], desc: ["Hookload (klb)", "Hookload", "Hookload (avg)"]}
+  block_pos:    {mnem: [BPOS, BLKPOS, "BLOCK HEIGHT", BHGT, BLKH, BLK_POS, BLOCKPOS], desc: ["Block Position (ft)", "Block Position", "Block Height", "Hook Height", "Traveling Block Position"]}
+  rop:          {mnem: [ROP, ROPA, "ROP AVG", ROP5, ROPI, ROP_AVG], desc: ["ROP (ft/h)", "Rate of Penetration (avg)", "Rate of Penetration", "Rate Of Penetration Average", "On Bottom ROP"]}
+  hookload:     {mnem: [HKLA, HOOKLOAD, HKLD, HKL, HOOK_LOAD, HKLDA], desc: ["Hookload (klb)", "Hookload", "Hookload (avg)", "Hook Load", "Hook Load Average", "Hookload Average"]}
   hookload_max: {mnem: [HKLX], desc: ["Hookload (max)"]}
-  wob:          {mnem: [WOB, WOBA], desc: ["WOB (klb)", "Weight-on-Bit (surf,avg)"]}
-  torque:       {mnem: [TORQUE, TORQA], desc: ["Rotary Torque (kft-lb)", "Rotary Torque", "Rotary Torque (surf,avg)"]}
+  wob:          {mnem: [WOB, WOBA, SWOB, WOB_AVG], desc: ["WOB (klb)", "Weight-on-Bit (surf,avg)", "Weight on Bit", "Surface Weight on Bit", "Weight On Bit Average"]}
+  torque:       {mnem: [TORQUE, TORQA, TQA, STOR, TORQ, STQA, TDTQ], desc: ["Rotary Torque (kft-lb)", "Rotary Torque", "Rotary Torque (surf,avg)", "Surface Torque", "Surface Torque Average", "Top Drive Torque", "Torque"]}
   torque_max:   {mnem: [TORQUEMAX], desc: ["Rotary Torque Max"]}
-  rpm:          {mnem: [RPM, RPMA, SURFRPM, CRPM], desc: ["Surface RPM", "Rotary Speed (surf,avg)", "CRPM"]}
-  spp:          {mnem: [SPP, SPPA], desc: ["Standpipe Pressure (psi)", "Standpipe Pressure", "Standpipe Pressure (avg)"]}
-  flow_in:      {mnem: [MFIA, "MUD FLOW IN"], desc: ["Mud Flow In"]}
-  flow_out_pct: {mnem: [MFOP, "MUD FLOW OUT"], desc: ["Mud Flow Out %"]}
-  active_pit:   {mnem: [TVA, TVOLACT, "ACTIVE PIT"], desc: ["Tank Volume Active", "Tank Volume Ac", "Tank Volume (active)"]}
-  trip_tank:    {mnem: [TRIPTANK, TTVOL1, "TRIP PIT"], desc: ["Trip Tank 1 Volume", "Trip Tank"]}
+  rpm:          {mnem: [RPM, RPMA, SURFRPM, CRPM, SRPM, RPMS, TDRPM, TD_RPM], desc: ["Surface RPM", "Rotary Speed (surf,avg)", "CRPM", "Rotary Speed", "Surface Rotary Speed", "Top Drive RPM", "Top Drive Speed", "Rotary RPM"]}
+  spp:          {mnem: [SPP, SPPA, SPPR, PUMP_PRESSURE], desc: ["Standpipe Pressure (psi)", "Standpipe Pressure", "Standpipe Pressure (avg)", "Stand Pipe Pressure", "Standpipe Pressure Average", "Pump Pressure"]}
+  flow_in:      {mnem: [MFIA, "MUD FLOW IN", TFLO, MFI, FLOWIN, FLOW_IN, TFLOW, GPM], desc: ["Mud Flow In", "Flow In", "Total Flow In", "Total Pump Output", "Pump Flow Rate", "Flow Rate In", "Mud Flow In Average"]}
+  flow_out_pct: {mnem: [MFOP, "MUD FLOW OUT", FLOWOUT_PCT, MFOP_PCT], desc: ["Mud Flow Out %", "Flow Out %", "Flow Paddle", "Return Flow %", "Flow Out Percent"]}
+  active_pit:   {mnem: [TVA, TVOLACT, "ACTIVE PIT", TVT, PITV_ACT], desc: ["Tank Volume Active", "Tank Volume Ac", "Tank Volume (active)", "Active Pit Volume", "Pit Volume Active", "Active Tank Volume", "Total Active Volume"]}
+  trip_tank:    {mnem: [TRIPTANK, TTVOL1, "TRIP PIT", TTV1, TTVOL], desc: ["Trip Tank 1 Volume", "Trip Tank", "Trip Tank Volume"]}
   gain_loss:    {mnem: [GL, TVOLCACT, "GAIN/LOSS"], desc: ["Gain Loss", "Gain / Loss", "Tank Volume Change (active)"]}
-  ecd:          {mnem: [ECD], desc: ["ECD"]}
-  anp:          {mnem: [ANP, "ANNULAR PRESSURE"], desc: ["Annular Pressure"]}
-  mud_dens_in:  {mnem: [MDIA], desc: ["Mud Density In"]}
+  ecd:          {mnem: [ECD, ECD_ARC, ARC_ECD, ECDA, ECD_BIT, ECDBIT, PWD_ECD, ECD_PWD], desc: ["ECD", "Annular ECD", "ECD at Bit", "Equivalent Circulating Density", "PWD ECD", "Downhole ECD"]}
+  anp:          {mnem: [ANP, "ANNULAR PRESSURE", APRS, ANN_PRESS, APWD], desc: ["Annular Pressure", "PWD Annular Pressure", "Downhole Annular Pressure"]}
+  mud_dens_in:  {mnem: [MDIA, MWIN, MW_IN, MDOA_IN, DENSITY_IN], desc: ["Mud Density In", "Mud Weight In", "Density In", "MW In"]}
   inclination:  {mnem: [INCLCONT], desc: ["Inclination_Cont"]}
   azimuth:      {mnem: [], desc: ["Azimuth_cont"]}
   actc:         {mnem: [ACTC], desc: ["Drilling Condition", "Activity Code"]}
@@ -47,17 +49,17 @@ ppfg:
   formation: {mnem: [FORMATION], desc: ["FORMATION"]}
 
 mud:
-  md:     {mnem: [MDPPFG], desc: []}
+  md:     {mnem: [MDPPFG, MD, DEPTH, DEPT], desc: ["Measured Depth", "Depth", "MD", "From Depth", "Depth From"]}
   tvd:    {mnem: [TVD], desc: []}
-  mw:     {mnem: [MUDWEIGHT], desc: ["Mud Weight (ppg)"]}
+  mw:     {mnem: [MUDWEIGHT, MW, MUD_WEIGHT, MWT], desc: ["Mud Weight (ppg)", "Mud Weight", "MW", "Mud Density", "Density"]}
   remark: {mnem: [REMARK], desc: ["REMARK"]}
 
 survey:
-  md:  {mnem: [DSVM], desc: ["Depth Svy reading (meas)"]}
-  tvd: {mnem: [DSVV], desc: ["Depth Svy reading (vert)"]}
-  inc: {mnem: [SINC], desc: ["Svy Inclination"]}
-  azi: {mnem: [SAZC], desc: ["Svy Azimuth (corrected)"]}
-  dls: {mnem: [SDLS], desc: ["Svy Dog Leg Severity"]}
+  md:  {mnem: [DSVM, MD, DEPTH, DEPT, SVY_MD], desc: ["Depth Svy reading (meas)", "Measured Depth", "MD", "Survey Depth", "Station MD", "Depth"]}
+  tvd: {mnem: [DSVV, TVD], desc: ["Depth Svy reading (vert)", "True Vertical Depth", "TVD"]}
+  inc: {mnem: [SINC, INC, INCL, INCLINATION, INCLIN], desc: ["Svy Inclination", "Inclination", "Inc", "Incl", "Hole Inclination"]}
+  azi: {mnem: [SAZC, AZI, AZM, AZIM, AZIMUTH, AZ], desc: ["Svy Azimuth (corrected)", "Azimuth", "Azi", "Azm", "Grid Azimuth", "True Azimuth", "Azimuth (corrected)"]}
+  dls: {mnem: [SDLS, DLS, DOGLEG], desc: ["Svy Dog Leg Severity", "Dog Leg Severity", "Dogleg Severity", "DLS"]}
 
 # rentang fisik (QC); di luar rentang -> di-flag, tidak dibuang otomatis
 ranges:
