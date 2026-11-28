@@ -9,6 +9,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from . import evidence
+
 LEVEL_W = {"ADVISORY": 0.3, "WARNING": 0.6, "CRITICAL": 0.9}
 
 DEFAULTS = {
@@ -245,7 +247,7 @@ def _po_note(df: pd.DataFrame, seg: slice, alpha: float) -> dict:
     i = po.idxmax()
     fg = df["fg_bit"].loc[i] if "fg_bit" in df else np.nan
     o = {"ecd_po_max": round(float(po.loc[i]), 2), "ecd_po_hi_max": round(float(df["ecd_po_hi"].loc[i]), 2),
-         "spp_excess_max": round(float(df["spp_excess"].loc[i]), 0)}
+         "spp_excess_max": round(float(df["spp_excess"].loc[i]), 0), "po_alpha": alpha}
     txt = (f"ECD di bawah sensor ±{o['ecd_po_max']:.2f} ppg ({alpha:.0%} dari ΔSPP {o['spp_excess_max']:.0f} psi; "
            f"batas atas sumbatan total {o['ecd_po_hi_max']:.2f})")
     if pd.notna(fg):
@@ -292,8 +294,12 @@ def episodes(df: pd.DataFrame, fl: dict, p: dict) -> list[dict]:
                 "rec": RECS[key],
                 **(loss_note(df, a, b) if key == "loss" else {}),
                 **(_po_note(df, seg, p["po_transmission"]) if key == "packoff" else {}),
+                "facts": evidence.facts_for(key, df, fl, a, b),
             })
     out.sort(key=lambda d: d["start"])
+    for d in out:
+        d["repeat"] = evidence.repeats(out, d)
+        d["summary"] = evidence.summary(d["facts"], d["repeat"])
     return out
 
 

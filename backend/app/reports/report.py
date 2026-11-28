@@ -98,7 +98,7 @@ def build_summary(db: Session, kind: str, well: Well | None, t0: datetime | None
                 "level_minutes": {k: round(int(v) * step / 60) for k, v in df["level"].value_counts().items()},
                 "state_minutes": {k: round(int(v) * step / 60) for k, v in df["state"].value_counts().items()},
                 "state_table": state_table(db, well, t0, t1),
-                "detections": [{k: d[k] for k in ("start", "level", "label", "md", "rec")} for d in r["detections"]][:60],
+                "detections": [{k: d.get(k) for k in ("start", "level", "label", "md", "summary", "rec")} for d in r["detections"]][:60],
                 "model": f"ecd-{r['model'].algo} v{r['model'].version} ({r['model'].status})" if r["model"] else None,
                 "ppfg": f"Rec 03 v{r['ppfg'].version} ({r['ppfg'].status})" if r["ppfg"] else "belum ada PPFG approved",
                 "data_minutes": round(len(df) * step / 60),

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useApp, useFetch } from "../lib/ctx";
 import { ago, C, ft, n, RATHOLE, STATE_LABEL, wib, toLocalInput } from "../lib/fmt";
-import { EChart, Err, Kpi, Level, WellSelect, ZoneTag } from "../components/ui";
+import { EChart, Err, Evidence, Kpi, Level, WellSelect, ZoneTag } from "../components/ui";
 import { buildTracks, CHANNELS, PRESETS } from "../components/tracks";
 import { t } from "../lib/i18n";
 
@@ -111,10 +111,8 @@ export default function LiveMonitor() {
                 return (
                   <div key={i} style={{ borderTop: "1px solid #E3E8EE", padding: "8px 0", opacity: ack[k] ? 0.5 : 1 }}>
                     <div className="row"><Level v={d.level} /><ZoneTag z={d.zone} /><span className="small mono">{wib(d.start)}</span><span className="sp" /><button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => setAck({ ...ack, [k]: true })}>{t("Ack")}</button></div>
-                    <div className="small" style={{ marginTop: 4 }}>{d.label}{d.md ? t(" @{p0} ft", { p0: ft(d.md) }) : ""}</div>
-                    {d.rec && <div className="muted small">{t("Rekomendasi verifikasi:")}{" "}{d.rec}</div>}
-                    {d.po_note && <div className="small" style={{ color: /MELEBIHI/.test(d.po_note) ? "#B42318" : "#9A6700" }}>⚑ {d.po_note}</div>}
-                    {d.note && <div className="small" style={{ color: "#9A6700", marginTop: 2 }}>⚠ {d.note}</div>}
+                    <div className="small" style={{ marginTop: 4 }}><b>{t(d.label)}</b>{d.md ? t(" @{p0} ft", { p0: ft(d.md) }) : ""}</div>
+                    <Evidence d={d} />
                   </div>
                 );
               })}

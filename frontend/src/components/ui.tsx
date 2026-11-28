@@ -98,3 +98,51 @@ export const AX = {
   nameTextStyle: { color: "#5B6775", fontSize: 11 },
 };
 export const TIP = { trigger: "axis", backgroundColor: "#FFFFFF", borderColor: "#D5DCE4", textStyle: { color: "#1B2430", fontSize: 12 }, axisPointer: { type: "cross", lineStyle: { color: "#9AA5B1" } } };
+
+/* ---- bukti kuantitatif per deteksi (backend anomaly/evidence.py): aktual vs harapan, selisih, konteks ---- */
+const FACT_K: Record<string, string> = {
+  spp: "SPP", flow_in: "Flow in", torque: "Torque", rpm: "RPM", wob: "WOB", hookload_pu: "Hookload P/U",
+  off_bottom: t("Jarak dari dasar"), ecd_pred: "ECD ⓥ", ecd: t("ECD terukur"), flow_out_pct: "Flow out",
+  active_pit: "Active pit", stationary_min: t("Pipa diam"), overbalance: t("Overbalance statis MW − PP"), mw: "MW",
+};
+const FACT_REF: Record<string, string> = {
+  same_flow: t("harapan pada flow sama"), baseline: t("baseline 60 mnt"), before: t("sebelumnya"),
+  model: "ECD ⓥ", limit: t("batas"), mw: "MW",
+};
+const UNIT_D: Record<string, number> = { ppg: 2, "kft·lb": 1, klb: 1, bbl: 1 };
+const fx = (v: number, u: string) => fmtN(v, UNIT_D[u] ?? 0);
+function fmtN(v: number, d: number) { return Number(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); }
+
+export function Evidence({ d }: { d: any }) {
+  const facts: any[] = d.facts || [];
+  const rep = d.repeat || {};
+  return (
+    <div className="small" style={{ marginTop: 2 }}>
+      {facts.map((f, i) => {
+        const up = (f.d ?? 0) >= 0, sign = up ? "+" : "−";
+        const strong = f.pct != null && f.pct >= 95;
+        return (
+          <div key={i} className="mono" style={{ fontSize: 12 }}>
+            <b>{FACT_K[f.k] ?? f.k}</b> {fx(f.v, f.unit)}
+            {f.exp != null ? <> {t("vs")} {fx(f.exp, f.unit)} {f.unit} <span className="muted">({FACT_REF[f.ref] ?? f.ref})</span>{" "}
+              <span style={{ color: Math.abs(f.dp ?? 0) >= 10 || strong ? "#B42318" : undefined }}>{sign}{fx(Math.abs(f.d), f.unit)}{f.dp != null ? ` (${sign}${Math.abs(f.dp)}%)` : ""}</span></> : <> {f.unit}</>}
+            {f.pct != null && <span className="muted"> · {t("lebih tinggi dari {p0}% data 6 jam terakhir", { p0: f.pct })}{f.z != null ? ` (${f.z > 0 ? "+" : ""}${f.z}× MAD)` : ""}</span>}
+          </div>
+        );
+      })}
+      {d.ecd_po_max != null && (
+        <div style={{ color: d.fg_bit != null && d.ecd_po_max > d.fg_bit ? "#B42318" : "#9A6700" }}>
+          ⚑ {t("ECD di bawah sensor ±{p0} ppg ({p1}% dari ΔSPP {p2} psi; batas atas sumbatan total {p3})", { p0: fmtN(d.ecd_po_max, 2), p1: Math.round((d.po_alpha ?? 0.2) * 100), p2: fmtN(d.spp_excess_max, 0), p3: fmtN(d.ecd_po_hi_max, 2) })}
+          {d.fg_bit != null && <>{t("; FG bit {p0}", { p0: fmtN(d.fg_bit, 2) })}{d.ecd_po_max > d.fg_bit ? t(" → MELEBIHI FG") : ""}</>}
+        </div>
+      )}
+      {d.detector === "loss" && (d.no_pwd || d.note) && (
+        <div style={{ color: "#9A6700" }}>⚠ {d.no_pwd ? t("Tanpa PWD: ECD ⓥ mengasumsikan kolom lumpur penuh; saat loss tekanan nyata bisa lebih rendah (bisa < MW). Cek margin ke PP.") : t("ECD terukur di bawah MW: level lumpur annulus turun. Cek margin ECD terukur ke PP.")}
+          {d.overbalance_static != null ? " " + t("Overbalance statis MW − PP ≈ {p0} ppg (bila kolom penuh).", { p0: fmtN(d.overbalance_static, 2) }) : ""}</div>
+      )}
+      {rep.n_depth ? <div className="muted">↻ {t("{p0}× sebelumnya di kedalaman ±{p1} ft dalam 24 jam", { p0: rep.n_depth, p1: rep.depth_ft })}</div>
+        : rep.n_24h ? <div className="muted">↻ {t("{p0}× dalam 24 jam", { p0: rep.n_24h })}</div> : null}
+      {d.rec && <div className="muted">{t("Verifikasi:")} {t(d.rec)}</div>}
+    </div>
+  );
+}

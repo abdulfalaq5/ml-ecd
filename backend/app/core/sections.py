@@ -75,7 +75,10 @@ def clean_sections(rows: list[dict] | None) -> list[dict]:
         if s["preset"] and s["preset"] not in presets:
             raise ValueError(f"baris {i + 1}: preset string '{s['preset']}' tidak ada di katalog")
         if s["shoe_md"] is not None and s["shoe_md"] > s["from_md"] + 50:
-            raise ValueError(f"baris {i + 1}: shoe casing ({s['shoe_md']:g} ft) lebih dalam dari awal section ({s['from_md']:g} ft)")
+            raise ValueError(f"baris {i + 1}: shoe casing ({s['shoe_md']:g} ft) lebih dalam dari awal section ({s['from_md']:g} ft). "
+                             "Shoe casing = casing yang SUDAH terpasang di atas section ini (dilewati string). Casing yang "
+                             "di-set di akhir section ini diisi di baris section berikutnya, mis. baris 12-1/4\" mulai "
+                             f"{s['shoe_md']:g} ft dengan shoe {s['shoe_md']:g} ft. Untuk section pertama kosongkan (atau isi shoe conductor).")
         if s["casing_id"] is not None and s["casing_id"] <= s["hole_size"] * 0.6:
             raise ValueError(f"baris {i + 1}: ID casing {s['casing_id']:g}\" terlalu kecil untuk lubang {s['hole_size']:g}\"")
         if (s["pv"] is None) != (s["yp"] is None):
