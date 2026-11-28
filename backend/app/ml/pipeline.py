@@ -197,8 +197,12 @@ def train_job(model_id: int, algo: str, blind: list[str], train: list[str], lowo
         for w in db.scalars(select(Well).where(Well.name.in_(train + blind))):
             full = well_frame(db, w)
             d = labeled(full)
-            no_mw = len(labeled(full, need_mw=False)) - len(d)
-            say(f"{w.name}: {len(d)} baris berlabel" + (f" ({no_mw} baris ber-ECD dibuang: MW Rec 04 tidak ada)" if no_mw else ""))
+            base = labeled(full, need_mw=False)
+            no_mw = int((~base["mw"].between(7, 20)).sum()) if len(base) else 0
+            below = len(base) - len(d) - no_mw
+            why = [f"{no_mw} tanpa MW Rec 04"] if no_mw else []
+            why += [f"{below} ECD < MW (loss / MW salah titik)"] if below else []
+            say(f"{w.name}: {len(d)} baris berlabel" + (f" (dibuang: {', '.join(why)})" if why else ""))
             if len(d):
                 frames[w.name] = d
             del full

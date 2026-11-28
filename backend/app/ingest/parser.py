@@ -102,7 +102,7 @@ def _unique(names: list[str]) -> list[str]:
     return out
 
 
-CURVE_RE = re.compile(r"^\s*(?P<mn>[^\s.:]+)\s*\.(?P<unit>[^\s:]*)\s*(?P<data>[^:]*?)\s*:\s*(?P<desc>.*?)\s*$")
+CURVE_RE = re.compile(r"^\s*(?P<mn>[^\s.:]+(?: [^\s.:]+)*)\s*\.(?P<unit>[^\s:]*)\s*(?P<data>[^:]*?)\s*:\s*(?P<desc>.*?)\s*$")
 
 
 def _parse_header_line(line: str) -> tuple[str, str, str, str] | None:
@@ -216,22 +216,57 @@ def _read_whitespace(body: list[str], names: list[str]) -> pd.DataFrame:
         return pd.DataFrame(rows, columns=names)
 
 
+@lru_cache
+def _alias_keys() -> frozenset:
+    """Semua nama kanal yang dikenal (mnemonik & deskripsi, dinormalisasi) + header waktu: untuk mencari baris header."""
+    keys = set(TIME_HEADERS)
+    for schema in mnemonics().values():
+        if isinstance(schema, dict):
+            for spec in schema.values():
+                if isinstance(spec, dict):
+                    keys |= {_norm(a) for a in [*spec.get("mnem", []), *spec.get("desc", [])]}
+    keys.discard("")
+    return frozenset(keys)
+
+
+def _header_score(cells: list) -> int:
+    return sum(1 for c in cells if c is not None and str(c).strip() and _norm(str(c)) in _alias_keys())
+
+
+def _sep_of(line: str) -> str:
+    return "," if line.count(",") >= max(line.count(";"), line.count("\t")) else (";" if line.count(";") >= line.count("\t") else "\t")
+
+
+def _is_blank_row(line: str) -> bool:
+    return not re.sub(r"[,;\t\s\"]", "", line)
+
+
 def parse_csv(content: bytes | str, filename: str) -> ParsedTable:
     if isinstance(content, str):
         content = content.encode("utf-8")
     if content.startswith(b"\xef\xbb\xbf"):
         content = content[3:]
-    pos, lines = 0, []
-    for _ in range(2):  # dua baris header pertama saja yang didecode
+    pos, lines, starts = 0, [], []
+    for _ in range(60):  # baris awal saja yang didecode (header bisa di bawah blok judul laporan)
         nl = content.find(b"\n", pos)
         end = len(content) if nl < 0 else nl
+        starts.append(pos)
         lines.append(_decode(content[pos:end]).rstrip("\r"))
         pos = end + 1
         if nl < 0:
             break
+    h = 0
+    if _header_score(_split_cells(lines[0])) < 2:
+        # laporan survey (Halliburton/SLB): judul, info sumur, lalu baris header "MD, Inc, Azi, TVD, …"
+        h = next((i for i, ln in enumerate(lines[1:], 1) if _header_score(_split_cells(ln)) >= 3), 0)
+    if h:
+        nxt = next((i for i in range(h + 1, min(h + 4, len(lines))) if not _is_blank_row(lines[i])), None)
+        lines = [lines[h]] + ([lines[nxt]] if nxt is not None else [])
+        content = content[starts[h]:] if nxt is None else (
+            content[starts[h]:starts[h + 1]] + content[starts[nxt]:])
     if not lines or not lines[0].strip():
         raise ValueError("CSV kosong")
-    sep = "," if lines[0].count(",") >= max(lines[0].count(";"), lines[0].count("\t")) else (";" if lines[0].count(";") >= lines[0].count("\t") else "\t")
+    sep = _sep_of(lines[0])
     header = [h.strip().strip('"') for h in lines[0].split(sep)]
     skip = 1
     fmt = "csv-rig"
@@ -262,6 +297,10 @@ def parse_csv(content: bytes | str, filename: str) -> ParsedTable:
         raw[names[1]] = _to_num(raw[names[1]])
     is_time = _norm(header[0]) in TIME_HEADERS or _looks_datetime(raw[names[0]])
     return ParsedTable(filename, fmt, "time" if is_time else "depth", 0, {}, curves, raw)
+
+
+def _split_cells(line: str) -> list[str]:
+    return [c.strip().strip('"') for c in line.split(_sep_of(line))]
 
 
 def _unit_in_header(h: str) -> str:
@@ -309,8 +348,11 @@ def excel_to_csv(content: bytes) -> bytes:
         if df.empty:
             continue
         rows = df.values.tolist()
-        for i in range(min(len(rows) - 1, 30)):
-            cells = ["" if pd.isna(x) else str(x).strip() for x in rows[i]]
+        scores = [_header_score(r) for r in rows[:60]]
+        best = max(range(len(scores)), key=lambda i: scores[i]) if scores else 0
+        order = [best] if scores and scores[best] >= 3 else range(min(len(rows) - 1, 30))
+        for i in order:
+            cells = ["" if pd.isna(x) else re.sub(r"\s+", " ", str(x)).strip() for x in rows[i]]
             texts = [x for x in cells if x and not _is_num(x)]
             if len(texts) < 2:
                 continue
@@ -433,6 +475,8 @@ def _norm(x: str) -> str:
     return re.sub(r"[\s_\-]+", " ", x).strip().upper()
 
 
+COMMENT_HEADERS = {"COMMENTS", "COMMENT", "REMARKS", "REMARK", "DESCRIPTION", "STATION", "STATION TYPE", "SURVEY TYPE"}
+PROJ_RE = re.compile(r"^\s*proj", re.I)
 SKIP_UNMAPPED = {"WID", "SKNO", "RID", "SQID", "DATE", "TIME", "DTSRV", "DEPTH", "DATE TIME SERVER"}
 
 
@@ -548,6 +592,12 @@ def canonicalize(pt: ParsedTable, source_tz: str) -> ParsedTable:
     schema = {1: mn["rig"], 2: mn["rig"], 3: mn["ppfg"], 4: mn["mud"], 7: mn["survey"]}.get(pt.record, mn["rig"])
     mapping = _match(pt, schema)
     raw = pt.raw
+    if pt.basis == "time" and pt.record in (1, 2) and "bit_depth" not in mapping:
+        col = next((n for c, n in list(zip(pt.curves, raw.columns))[1:] if _norm(c.mnem) == "DEPTH"
+                    and n not in mapping.values()), None)
+        if col is not None:
+            mapping["bit_depth"] = col
+            pt.notes.append(("info", "Bit depth", f"kolom '{col}' dibaca sebagai bit depth (format Halliburton)"))
     df = pd.DataFrame(index=raw.index)
 
     if pt.basis == "time":
@@ -584,6 +634,13 @@ def canonicalize(pt: ParsedTable, source_tz: str) -> ParsedTable:
         if spm:
             df["spm_total"] = df[spm].sum(axis=1, min_count=1)
             df = df.drop(columns=spm)
+        if "ecd" in df and "anp" in df:
+            # Navita BDSI 60 (11–14 Nov, 12-1/4"): kanal ECD berisi tekanan annulus (psi) & ANNPRESS berisi ECD (ppg)
+            swap = (df["ecd"] > 30) & df["anp"].between(6, 20)
+            if swap.any():
+                df.loc[swap, ["ecd", "anp"]] = df.loc[swap, ["anp", "ecd"]].to_numpy()
+                pt.notes.append(("warn", "Kanal ECD/ANP tertukar", f"{int(swap.sum())} baris: ECD berisi tekanan (psi) dan "
+                                 "annular pressure berisi ppg → ditukar balik"))
         if "ecd" in df:
             df.loc[df["ecd"] <= 0, "ecd"] = np.nan  # ECD = 0 berarti tidak ada sensor
         if "anp" in df:
@@ -604,6 +661,26 @@ def canonicalize(pt: ParsedTable, source_tz: str) -> ParsedTable:
         if "md" in mapping:  # survey: MD stasiun (DSVM) lebih tepat daripada indeks
             alt = _to_num(raw[mapping["md"]]) * _unit_factor("md", _unit_of(pt, raw, mapping["md"]))
             df["md"] = alt.fillna(df["md"])
+        # Baris proyeksi ("Projected to TD", "Proj to 8.5in CP", "Proj. to TD"): proyeksi di bit (stasiun terdalam file)
+        # DIPERTAHANKAN untuk TVD/inklinasi di bit (ECD ⓥ) — klien 28 Nov; tergantikan otomatis saat survey baru di-upload
+        # (upload survey mengganti seluruh survey sumur). Proyeksi yang sudah dilewati stasiun asli dibuang.
+        for col in raw.columns:
+            if _norm(col) in COMMENT_HEADERS or col == raw.columns[0]:
+                v = raw[col].astype(str)
+                proj = v.str.match(PROJ_RE) & df.index.isin(raw.index)
+                if not proj.any():
+                    continue
+                deepest = df["md"].max()
+                at_bit = proj & (df["md"] >= deepest)
+                drop = proj & ~at_bit
+                if at_bit.any():
+                    pt.notes.append(("info", "Proyeksi di bit dipertahankan",
+                                     f"MD {deepest:g} ft ({v[at_bit].iloc[0].strip()[:30]}): bukan survey official, "
+                                     "tergantikan saat survey berikutnya di-upload"))
+                if drop.any():
+                    pt.notes.append(("info", "Proyeksi dibuang", f"{int(drop.sum())} baris proyeksi di atas stasiun asli: "
+                                     + ", ".join(sorted({x.strip()[:30] for x in v[drop]}))))
+                    df = df.drop(index=raw.index[drop], errors="ignore")
         df = df.dropna(subset=["md"]).drop_duplicates("md").sort_values("md")
         df = complete_survey(df, pt.notes)
 

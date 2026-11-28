@@ -203,8 +203,8 @@ def store(db: Session, well: Well, pt: ParsedTable, sha: str, user: str, mode: s
 
 def ingest_bytes(db: Session, well: Well, filename: str, content: bytes, user: str, mode: str = "append",
                  force: bool = False, source_tz: str | None = None) -> list[dict]:
-    """source_tz: zona waktu kolom waktu tanpa offset (default WIB dari setting; 'UTC' untuk file SLB/Halliburton yang
-    ditulis dalam UTC). Kolom waktu yang membawa offset (Z, +07:00) selalu dibaca sesuai offset-nya."""
+    """source_tz: zona waktu kolom waktu tanpa offset (default WIB dari setting; Navita, SLB, dan Halliburton memakai
+    WIB/UTC+7 menurut klien 28 Nov; 'UTC' hanya untuk file yang ditulis dalam UTC). Kolom waktu yang membawa offset (Z, +07:00) selalu dibaca sesuai offset-nya."""
     settings = get_settings()
     results = []
     updir = Path(settings.upload_dir) / well.name

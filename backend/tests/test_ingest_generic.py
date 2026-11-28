@@ -85,3 +85,81 @@ def test_ambiguous_date_flagged():
     pt = load("x.csv", csv)
     assert pt.data["ts"].iloc[0].tz_convert("Asia/Jakarta").month == 11
     assert any(n[1] == "Format tanggal ambigu" for n in pt.notes)
+
+
+# ---- format asli dari contoh klien 28 Nov (isi dipendekkan & disamarkan)
+
+def test_halliburton_survey_report_csv_with_title_block():
+    csv = (b"\n,Survey Report\n\n,Report Date:,17-Nov-2025 ,,,,Survey Calc Method:,Minimum Curvature\n"
+           b",Client:,X,,,,DLS:,LUBINSKI,\n,Well:,W-1,,,,TVD Reference Datum:,RTe\n\n\n"
+           b"Comments,MD,Inc,Azi,TVD,TVDSS,DLS,BUILD,WALK,LATITUDE\n\n"
+           b"-,   ft   ,(deg),(deg),   ft   ,   ft   ,   ft   ,(deg), 100ft) ,DD:MM:SS\n\n"
+           b"Tie-in,1732.80,42.49,149.31,1589.34,1385.34,0.00,0.00,0.00,1\xb0 16' N\n"
+           b"Proj to 12.25in CP,1800.00,42.70,151.00,1640.00,1436.00,0.00,0.00,0.00,1\xb0 16' N\n"
+           b"    ,1825.40,42.87,153.59,1657.43,1453.43,3.16,0.41,4.62,1\xb0 16' N\n"
+           b"Last survey; CtC = 20.1 ft,1889.30,44.31,157.49,1703.72,1499.72,4.77,2.25,6.10,1\xb0 16' N\n"
+           b"Projected to TD Well; CtC = 10.2 ft,1950.00,44.31,157.49,1747.10,1543.10,0.00,0.00,0.00,1\xb0 16' N\n")
+    pt = load("W-1_12.25in HS_MWD Survey.txt.csv", csv)
+    assert pt.record == 7
+    d = pt.data
+    assert list(d["md"]) == [1732.8, 1825.4, 1889.3, 1950.0]   # proyeksi lama dibuang, proyeksi di bit dipertahankan
+    assert any(n[1] == "Proyeksi dibuang" for n in pt.notes)
+    assert any(n[1] == "Proyeksi di bit dipertahankan" for n in pt.notes)
+    assert d["tvd"].iloc[0] == pytest.approx(1589.34) and d["dls"].iloc[2] == pytest.approx(4.77)
+
+
+def test_slb_survey_excel_report_header_multiline_cells():
+    meta = [["[W-1] (Non-Def Survey)", None, None], ["Report Date:", "September 16, 2026", "Survey / DLS Computation:"],
+            ["Well:", "W-1", "TVD Reference Datum:"], ["Version / Patch:", "2.10.839.0", "Total Corr Mag North->Grid North:"]]
+    rows = [["Comments", "MD\n(ft)", "Incl\n(°)", "Azim Grid\n(°)", "TVD\n(ft)", "NS\n(N/S ft)", "DLS\n(°/100ft)"],
+            ["Tie-In", 0, 0, 0, 0, "N 0.00", "N/A"], [None, 153.08, 0.83, 160.99, 153.075, "S 0.92", 0.619],
+            [None, 211.48, 0.82, 164.1, 211.469, "S 1.72", 0.079], ["Proj. to TD", 300, 0.82, 164.1, 300.0, "S 2.0", 0],
+            [None], ["Survey Type:", None, None]]
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf) as xw:
+        pd.DataFrame(meta + [[None]] + rows).to_excel(xw, sheet_name="Survey", header=False, index=False)
+    pt = load("W-1_8.5in Survey GeodeticReport.xlsx", buf.getvalue())
+    assert pt.record == 7 and pt.mapped["azi"].startswith("Azim Grid")
+    assert list(pt.data["md"]) == [0, 153.08, 211.48, 300] and pt.data["inc"].iloc[1] == pytest.approx(0.83)
+
+
+def test_halliburton_time_based_csv_and_las_names_with_spaces():
+    cols = ("Time(unitless),Block Position(ft),Hole Depth(ft),Depth(ft),Hookload(klbm),Torque(ft.lbf),"
+            "SPP(psig),Flowrate(galUS/min),PWD Annular Pressure(psig),PWD Ann Press - EMW(lbm/galUS)\n")
+    csv = (cols + "2026-11-28T05:41:24.19+07:00,59.3,3643.6,3643.6,,,,,,\n"
+                  "2026-11-28T05:41:28.51+07:00,,,,111.2,5102.8,,591.2,,\n"
+                  "2026-11-28T05:41:30.00+07:00,40.0,3643.6,3624.3,,,2133.9,,2019.2,10.87\n").encode()
+    pt = load("pasopati_W-1_28_Nov_26.csv", csv, tz="UTC")       # offset +07:00 menang atas pilihan UTC
+    d = pt.data
+    assert d["ts"].iloc[0] == pd.Timestamp("2026-11-27 22:41:24.19", tz="UTC")
+    assert {"bit_depth", "hole_depth", "flow_in", "ecd", "anp"} <= set(pt.mapped)
+    assert d["bit_depth"].iloc[-1] == pytest.approx(3624.3) and d["ecd"].iloc[-1] == pytest.approx(10.87)
+    assert d["torque"].iloc[1] == pytest.approx(5.1028)            # ft.lbf → kft·lb
+    las = ("~Version Information\n VERS. 2.0 :\n WRAP. NO :\n~Well Information\n"
+           "STRT.unitless  2026-11-28T05:43:24.23+07:00  : START DEPTH\nNULL.  -999.25 : NULL VALUE\n"
+           "~Curve Information\nTime.unitless   : Time\nBlock Position.ft   : Block Position\n"
+           "Hole Depth.ft   : Hole Depth\nDepth.ft  : Depth\nPWD Ann Press - EMW.lbm/galUS  : Ann Press - EMW\n~A\n"
+           "2026-11-28T05:43:24.23+07:00  56.95  3645.94  3645.94  -999.25\n"
+           "2026-11-28T05:43:29.23+07:00  50.10  3645.94  3639.10  10.90\n")
+    pt = load("pasopati_W-1.las", las.encode())
+    assert pt.mapped["block_pos"] == "Block Position" and pt.mapped["ecd"] == "PWD Ann Press - EMW"
+    assert pt.data["bit_depth"].iloc[-1] == pytest.approx(3639.1)
+
+
+def test_slb_interact_csv_mnemonics():
+    csv = (b"TIME,BPOS,SPPA,RPM,BONB,BHD,SPPA,SWOB,GS_TDTRQ\ns,ft,psi,c/min,,ft,psi,1000 lbf,1000 ft.lbf\n"
+           b"2026-11-06T17:25:00,27.03,602.37,0.00,1.00,5351.25,602.37,-44.92,-999.25\n"
+           b"2026-11-06T17:25:03,27.39,601.54,0.00,1.00,5351.25,601.54,-43.09,4.2\n")
+    pt = load("8d50f3c.csv", csv)
+    assert pt.mapped["hole_depth"] == "BHD" and pt.mapped["torque"] == "GS_TDTRQ"
+    assert pt.data["ts"].iloc[0] == pd.Timestamp("2026-11-06 10:25", tz="UTC")   # tanpa offset = WIB
+    assert pt.data["torque"].iloc[1] == pytest.approx(4.2)                       # 1000 ft.lbf = kft·lb
+
+
+def test_swapped_ecd_and_annular_pressure_columns_fixed():
+    csv = (b"TIME,BDEP,ECD,ANNPRESS\ns,ft,ppg,psi\n"
+           b"2026-11-12T07:20:04,1404,664.0,9.50\n2026-11-12T07:20:34,1405,9.6,700.0\n")
+    pt = load("export_ascii_record_02_x.csv", csv)
+    d = pt.data
+    assert list(d["ecd"]) == [9.5, 9.6] and list(d["anp"]) == [664.0, 700.0]
+    assert any(n[1] == "Kanal ECD/ANP tertukar" for n in pt.notes)
