@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..anomaly import detectors
 from ..config import get_settings
-from ..ml.pipeline import active_model, predict_frame
+from ..ml.pipeline import CAL_LOOKBACK_H, active_model, predict_frame
 from ..models import MLModel, Setting, Well
 from .alerts import RANK, classify, thresholds
 from .data import active_ppfg, load_mw, load_survey, load_time, time_range
@@ -72,7 +72,8 @@ def compute(db: Session, well: Well, t0: datetime | None = None, t1: datetime | 
     t0 = max(t0 or (t1 - timedelta(minutes=minutes or 60)), lo)
     end = min(cutoff, t1) if cutoff else t1
     cb = calc_bucket(t0, t1)
-    df = load_time(db, well.id, t0 - WARMUP, end, bucket_s=cb)
+    # riwayat: baseline detektor (WARMUP) + ECD terukur terakhir untuk kalibrasi ECD ⓥ (CAL_LOOKBACK_H)
+    df = load_time(db, well.id, t0 - max(WARMUP, timedelta(hours=CAL_LOOKBACK_H)), end, bucket_s=cb)
     if df.empty:
         return {"empty": True, "t0": t0, "t1": t1}
     df = add_features(df, load_mw(db, well.id), load_survey(db, well.id), well.sections)
@@ -84,6 +85,8 @@ def compute(db: Session, well: Well, t0: datetime | None = None, t1: datetime | 
     df["risk"] = det["score"]
     df = classify(df, thresholds(db), det["detections"])
     full = df[df.index >= t0]
+    if full.empty:   # jendela tampilan tanpa data (data terputus), riwayat sebelumnya ada -> tetap kosong, jangan error
+        return {"empty": True, "t0": t0, "t1": t1}
     bucket = pick_bucket(t0, t1, points)
     view = thin(full, bucket) if bucket > cb and len(full) > points else full
     dets = [d for d in det["detections"] if pd.Timestamp(d["end"]) >= t0]

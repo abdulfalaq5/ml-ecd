@@ -119,8 +119,10 @@ def flags(df: pd.DataFrame, p: dict) -> dict[str, tuple[pd.Series, pd.Series, pd
     out["tag"] = (m, pd.Series("ADVISORY", index=df.index), wob, wob_base)
 
     # lonjakan ECD ⓥ: naik ≥ x ppg dalam y mnt pada flow/RPM/MW sama; abaikan awal pompa hidup
-    if "ecd_pred" in df:
-        e = df["ecd_pred"]
+    # keluaran model mentah (ecd_model): kalibrasi ke PWD tidak boleh menimbulkan / menelan lonjakan
+    ecdv = df["ecd_model"] if "ecd_model" in df else df.get("ecd_pred")
+    if ecdv is not None:
+        e = ecdv
         w = _n(df, p["ecdv_window_min"])
         prev_e = e.shift(w).rolling(w, min_periods=min(w, max(2, w // 3))).median()
         prev_q = flow.shift(w).rolling(w, min_periods=min(w, max(2, w // 3))).median()
@@ -134,8 +136,8 @@ def flags(df: pd.DataFrame, p: dict) -> dict[str, tuple[pd.Series, pd.Series, pd
         out["ecdv_spike"] = (m, pd.Series(np.where(d >= 2 * p["ecdv_rise_ppg"], "WARNING", "ADVISORY"), index=df.index), d, prev_e)
 
     # residual ECD (hanya bila ada label)
-    if "ecd" in df and "ecd_pred" in df and df["ecd"].notna().any():
-        r = (df["ecd"] - df["ecd_pred"]).rolling(_n(df, 5), min_periods=min(2, _n(df, 5))).median()
+    if "ecd" in df and ecdv is not None and df["ecd"].notna().any():
+        r = (df["ecd"] - ecdv).rolling(_n(df, 5), min_periods=min(2, _n(df, 5))).median()
         m = pumps & (r >= p["residual_ppg"])
         out["residual"] = (m, pd.Series("ADVISORY", index=df.index), r, pd.Series(p["residual_ppg"], index=df.index))
 

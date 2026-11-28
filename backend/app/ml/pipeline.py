@@ -333,10 +333,66 @@ def _load(rec: MLModel) -> dict | None:
     return _cache[rec.artifact_path]
 
 
-def predict_frame(rec: MLModel | None, df: pd.DataFrame) -> pd.DataFrame:
-    """Tambahkan ecd_pred, ecd_lo, ecd_hi, ood, confidence. Pompa mati -> ECD ⓥ disuppress (NaN)."""
+# Kalibrasi ke ECD terukur (PWD) terakhir. Uji blind 28 Nov (v10; BDSI 60, GW339, BLSO-717), MAE bila PWD hilang selama
+# 10 mnt / 1 j / 6 j / 24 j: tanpa kalibrasi 0,242 di semua jeda; dengan kalibrasi 0,125 / 0,145 / 0,204 / 0,242.
+# Tanpa peluruhan, sesudah 24 j justru 0,376, jadi offset meluruh exp(−umur/CAL_TAU_H) dan reset tiap ganti hole size.
+CAL_HALFLIFE = "10min"     # EWMA residual terukur (≈ 20 sampel 30 dtk)
+CAL_TAU_H = 6.0
+CAL_LOOKBACK_H = 12.0      # riwayat yang perlu dimuat agar offset tersedia di awal jendela tampilan
+SMOOTH_WINDOW = "150s"     # median bergulir kausal 2,5 mnt: lompatan antar-sampel 0,007 → 0,001 ppg, MAE tetap
+
+
+def _smooth_pumps_on(s: pd.Series, pumps: pd.Series) -> pd.Series:
+    """Median bergulir kausal per segmen pompa hidup (tidak menyeberang pompa mati)."""
+    if not isinstance(s.index, pd.DatetimeIndex) or s.notna().sum() == 0:
+        return s
+    seg = (pumps != pumps.shift()).cumsum()
+    out = s.copy()
+    for _, g in s[pumps].groupby(seg[pumps]):
+        out.loc[g.index] = g.rolling(SMOOTH_WINDOW, min_periods=1).median()
+    return out
+
+
+def calibration_offset(df: pd.DataFrame, model_pred: pd.Series) -> tuple[pd.Series, pd.Series]:
+    """Offset kausal = EWMA (ECD terukur − ECD ⓥ model) dari label valid terakhir, meluruh dengan umur, nol bila
+    hole size berbeda dengan saat label terakhir. Return (offset ppg, umur jam; NaN = belum pernah ada label)."""
+    off = pd.Series(0.0, index=df.index)
+    age = pd.Series(np.nan, index=df.index)
+    if not isinstance(df.index, pd.DatetimeIndex) or "ecd" not in df or df["ecd"].notna().sum() == 0:
+        return off, age
+    lab = labeled(df.assign(_p=model_pred))
+    if "ecd_stale" in lab:
+        lab = lab[~lab["ecd_stale"].fillna(False).astype(bool)]
+    r = (lab["ecd"] - lab["_p"]).dropna()
+    if not len(r):
+        return off, age
+    ew = r.ewm(halflife=pd.Timedelta(CAL_HALFLIFE), times=r.index).mean()
+    tt = r.index.asi8
+    k = np.searchsorted(tt, df.index.asi8, side="right") - 1
+    ok = k >= 0
+    a = np.full(len(df), np.nan)
+    a[ok] = (df.index.asi8[ok] - tt[k[ok]]) / 3.6e12
+    o = np.zeros(len(df))
+    o[ok] = ew.to_numpy()[k[ok]]
+    if "hole_size" in df:
+        hs = df["hole_size"].to_numpy(float)
+        pos = df.index.get_indexer(r.index)          # posisi label di df (label berasal dari df)
+        same = np.zeros(len(df), bool)
+        hl = hs[pos[k[ok]]]
+        same[ok] = (hl == hs[ok]) | np.isnan(hl) | np.isnan(hs[ok])
+        o = np.where(same, o, 0.0)
+    o = np.where(ok, o * np.exp(-np.nan_to_num(a, nan=np.inf) / CAL_TAU_H), 0.0)
+    return pd.Series(o, index=df.index), pd.Series(a, index=df.index)
+
+
+def predict_frame(rec: MLModel | None, df: pd.DataFrame, calibrate: bool = True, smooth: bool = True) -> pd.DataFrame:
+    """Tambahkan ecd_pred, ecd_lo, ecd_hi, ood, confidence. Pompa mati -> ECD ⓥ disuppress (NaN).
+
+    ecd_model = keluaran model mentah (dipakai detektor residual / lonjakan ECD ⓥ dan evaluasi akurasi).
+    ecd_pred  = yang ditampilkan & dipakai margin: ecd_model di-smoothing 2,5 mnt + kalibrasi ke PWD terakhir
+                (cal_offset, cal_age_h). calibrate/smooth=False untuk evaluasi model murni."""
     out = df.copy()
-    for c in ("ecd_pred", "ecd_lo", "ecd_hi"):
+    for c in ("ecd_pred", "ecd_lo", "ecd_hi", "ecd_model", "cal_offset", "cal_age_h"):
         out[c] = np.nan
     out["ood"] = False
     out["missing_feat"] = 0
@@ -348,7 +404,13 @@ def predict_frame(rec: MLModel | None, df: pd.DataFrame) -> pd.DataFrame:
     X = out[art["features"]]
     pumps = out["state"].isin(PUMPS_ON_STATES)
     if pumps.any():
-        out.loc[pumps, "ecd_pred"] = art["model"].predict(X[pumps])
+        out.loc[pumps, "ecd_model"] = art["model"].predict(X[pumps])
+    pred = _smooth_pumps_on(out["ecd_model"], pumps) if smooth else out["ecd_model"].copy()
+    if calibrate:
+        off, age = calibration_offset(out, pred)
+        out["cal_offset"], out["cal_age_h"] = off.where(pumps), age.where(pumps)
+        pred = pred + off
+    out["ecd_pred"] = pred
     rq = rec.residual_q or {}
     allq = rq.get("ALL", [-0.3, 0.3])
     lo = out["state"].map(lambda s: rq.get(s, allq)[0]).astype(float)

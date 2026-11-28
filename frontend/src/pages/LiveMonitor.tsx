@@ -65,7 +65,7 @@ export default function LiveMonitor() {
             {sn.low_conf && <span className="chip" style={{ color: "#B98900" }}>Low confidence{sn.ood ? " · di luar rentang training" : ""}</span>}
           </div>
           <div className="kpis">
-            <Kpi l={ecdLabel} v={n(sn.ecd)} color={C.ecd} s={sn.ecd_lo != null ? `interval ${n(sn.ecd_lo)}–${n(sn.ecd_hi)} ppg` : sn.ecd_kind === "m" ? "terukur PWD" : "—"} />
+            <Kpi l={ecdLabel} v={n(sn.ecd)} color={C.ecd} s={(sn.ecd_lo != null ? `interval ${n(sn.ecd_lo)}–${n(sn.ecd_hi)} ppg` : sn.ecd_kind === "m" ? "terukur PWD" : "—") + (sn.ecd_kind === "v" && sn.cal_offset != null && Math.abs(sn.cal_offset) >= 0.01 ? ` · terkalibrasi PWD ${sn.cal_offset > 0 ? "+" : ""}${n(sn.cal_offset)} (${n(sn.cal_age_h, 1)} j lalu)` : "")} />
             <Kpi l="FG_min bit / open hole" v={`${n(sn.fg_bit, 1)} / ${n(sn.fg_oh, 1)}`} color={C.fg} s={sn.fg_oh_md ? `titik terlemah OH @${ft(sn.fg_oh_md)} ft` : "shoe belum diisi / PPFG kosong"} />
             <Kpi l="Margin atas bit · OH" v={`${n(sn.margin_up_bit, 1)} · ${n(sn.margin_up_oh, 1)}`} s={sn.interval_half ? `±${n(sn.interval_half)} dari interval` : ""} />
             <Kpi l="Margin bawah (ECD − max(PP,SFG))" v={n(sn.margin_low, 1)} s={`batas bawah ${n(sn.lower_bit, 1)}`} color={sn.margin_low != null && sn.margin_low < 0.25 ? "#E07A10" : undefined} />

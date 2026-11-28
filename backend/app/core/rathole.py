@@ -60,7 +60,7 @@ def analyze(db: Session, well: Well) -> dict:
     if df.empty:
         out["caveats"].append("Belum ada data time untuk sumur ini.")
         return out
-    p = predict_frame(rec, df)
+    p = predict_frame(rec, df, calibrate=False)   # fase 1 mengukur akurasi model murni vs PWD
 
     # ---------- Fase 1: ECD terukur tersedia (sebelum zona rathole berlaku) ----------
     lab = labeled(p)
@@ -144,14 +144,22 @@ def analyze(db: Session, well: Well) -> dict:
     elif out["model"] and out["model"]["well_role_in_model"] == "blind":
         cv.append("Sumur ini sumur blind model aktif → akurasi fase 1 adalah uji jujur (tidak pernah dilihat model).")
     if out["phase2"]:
-        cv.append("Ukuran lubang belum menjadi input model. Di section lebih kecil (mis. 6-1/8\") rugi gesek annulus "
-                  "lebih besar, sehingga ECD ⓥ fase 2 kemungkinan di bawah ECD aktual. Perlu data run section kecil ber-PWD.")
+        if "hole_size" in (getattr(rec, "importance", None) or {}):
+            cv.append("Ukuran lubang sudah menjadi input model, tetapi data training ber-PWD untuk section 6-1/8\" baru dari "
+                      "satu sumur (BLSE-055): ECD ⓥ fase 2 di section kecil masih bisa di bawah ECD aktual. Perlu data run "
+                      "section kecil ber-PWD.")
+        else:
+            cv.append("Ukuran lubang belum menjadi input model ini. Di section lebih kecil (mis. 6-1/8\") rugi gesek annulus "
+                      "lebih besar, sehingga ECD ⓥ fase 2 kemungkinan di bawah ECD aktual. Perlu data run section kecil ber-PWD.")
         if out["phase2"].get("ood_pct") and out["phase2"]["ood_pct"] > 10:
             cv.append(f"{out['phase2']['ood_pct']}% titik fase 2 di luar rentang data training (OOD).")
     ver, _ = active_ppfg(db, well.id)
     if not ver:
         cv.append("PPFG sumur ini belum di-approve → margin terhadap FG / batas bawah belum dihitung.")
-    cv.append("MW diambil dari Rec 04; cocokkan dengan MW di laporan harian.")
+    from .data import load_mw_changes
+    nch = len(load_mw_changes(db, well.id))
+    cv.append(f"MW dari Rec 04 per kedalaman + {nch} perubahan MW berbasis waktu (DDR); cocokkan dengan laporan harian."
+              if nch else "MW diambil dari Rec 04; cocokkan dengan MW di laporan harian.")
     cv.append("Ambang detektor belum dikalibrasi Drilling Eng + HSE: jumlah indikasi bersifat indikatif.")
     if len(_cache) > 32:
         _cache.clear()
