@@ -17,7 +17,7 @@ from ..ingest.service import get_or_create_well, ingest_bytes
 from ..ingest.watcher import scan_once
 from ..models import IngestFile, MudWeight, MudWeightChange, PPFGVersion, Setting, Survey, User, Well
 from ..core.data import time_range
-from ..security import audit, current_user, require
+from ..security import PERM, audit, current_user, require
 
 router = APIRouter(prefix="/api", tags=["wells"])
 
@@ -121,17 +121,20 @@ def _404():
 
 @router.post("/wells/{wid}/upload")
 async def upload(wid: int, files: list[UploadFile] = File(...), mode: str = Form("append"), tz: str = Form("WIB"),
+                 ppfg_approved: bool = Form(False),
                  db: Session = Depends(get_db), u: User = Depends(require("upload"))):
     """tz: zona waktu file bila kolom waktunya tanpa offset — WIB (Navita, default) atau UTC (sebagian export SLB/Halliburton)."""
     w = db.get(Well, wid) or _404()
     src_tz = {"WIB": None, "UTC": "UTC"}.get(tz.upper())
     if tz.upper() not in ("WIB", "UTC"):
         raise HTTPException(400, "Zona waktu harus WIB atau UTC")
+    if ppfg_approved and u.role not in PERM["ppfg_approve"]:
+        raise HTTPException(403, "Hanya admin / geomech yang boleh menandai PPFG (Rec 03) approved di sumber")
     out = []
     for fl in files:
         content = await fl.read()
         out.extend(ingest_bytes(db, w, fl.filename or "upload", content, u.username, "replace" if mode == "replace" else "append",
-                                source_tz=src_tz))
+                                source_tz=src_tz, ppfg_approved=ppfg_approved))
     return {"results": out}
 
 

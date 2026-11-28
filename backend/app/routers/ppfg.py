@@ -8,8 +8,10 @@ from sqlalchemy.orm import Session
 
 from ..core.analysis import f
 from ..db import get_db
-from ..models import PPFGRow, PPFGVersion, Setting, User
-from ..security import audit, current_user, require
+from ..core.data import load_survey
+from ..core.ppfg_input import approve_version, store_manual
+from ..models import PPFGRow, PPFGVersion, Setting, User, Well
+from ..security import PERM, audit, current_user, require
 
 router = APIRouter(prefix="/api", tags=["ppfg"])
 
@@ -52,17 +54,33 @@ def approve(vid: int, body: Approve, db: Session = Depends(get_db), u: User = De
         raise HTTPException(404, "Versi tidak ada")
     if v.status != "draft":
         raise HTTPException(400, "Hanya versi draft yang bisa di-approve")
-    for o in db.scalars(select(PPFGVersion).where(PPFGVersion.well_id == v.well_id, PPFGVersion.status == "approved")):
-        o.status = "superseded"
-    now = datetime.now(timezone.utc)
-    v.status, v.approved_by, v.approved_at = "approved", u.username, now
-    v.effective_date = datetime.fromisoformat(body.effective_date) if body.effective_date else now
-    v.tvd_datum = body.tvd_datum
-    if body.notes:
-        v.notes = body.notes
-    audit(db, u.username, "ppfg_approve", f"well {v.well_id} v{v.version}")
+    approve_version(db, v, u.username, datetime.fromisoformat(body.effective_date) if body.effective_date else None,
+                    body.tvd_datum, body.notes)
     db.commit()
     return vout(v)
+
+
+class ManualPPFG(BaseModel):
+    rows: list[dict]
+    approved: bool = False
+    notes: str = ""
+
+
+@router.post("/wells/{wid}/ppfg/manual")
+def manual(wid: int, body: ManualPPFG, db: Session = Depends(get_db), u: User = Depends(require("ppfg_edit"))):
+    """PPFG tanpa file Rec 03: interval MD (atas–bawah) + PP/SFG/FG. `approved` = sudah approved di sumber
+    (Navita / Geomechanics), hanya untuk peran yang berhak approve."""
+    if not db.get(Well, wid):
+        raise HTTPException(404, "Sumur tidak ditemukan")
+    if body.approved and u.role not in PERM["ppfg_approve"]:
+        raise HTTPException(403, "Hanya admin / geomech yang boleh menandai PPFG approved")
+    try:
+        v, n = store_manual(db, wid, body.rows, u.username, body.approved, body.notes.strip()[:500], load_survey(db, wid))
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(400, str(e)) from None
+    db.commit()
+    return {**vout(v), "intervals": n}
 
 
 @router.post("/ppfg/{vid}/draft")

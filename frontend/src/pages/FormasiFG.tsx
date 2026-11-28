@@ -1,10 +1,67 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ClipboardEvent } from "react";
 import { api } from "../lib/api";
 import { useApp, useFetch } from "../lib/ctx";
 import { C, dateOnly, ft, n } from "../lib/fmt";
 import { AX, EChart, Err, TIP, WellSelect } from "../components/ui";
 
 const ST: Record<string, string> = { approved: "#1E9E5A", draft: "#B98900", superseded: "#7A8694" };
+
+type Iv = { md_top: string; md_bottom: string; pp: string; sfg: string; fg_min: string; fg_max: string; formation: string };
+const IV_KEYS: (keyof Iv)[] = ["md_top", "md_bottom", "pp", "sfg", "fg_min", "fg_max", "formation"];
+const blank = (): Iv => ({ md_top: "", md_bottom: "", pp: "", sfg: "", fg_min: "", fg_max: "", formation: "" });
+
+/** Input PPFG tanpa file Rec 03: interval MD + nilai ppg; bisa tempel dari Excel (urutan kolom = IV_KEYS). */
+function ManualPPFG({ wellId, onSaved }: { wellId: number; onSaved: () => void }) {
+  const { can } = useApp();
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<Iv[]>([blank()]);
+  const [approved, setApproved] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const set = (i: number, k: keyof Iv, v: string) => setRows(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  const paste = (i: number, e: ClipboardEvent<HTMLInputElement>) => {
+    const t = e.clipboardData.getData("text");
+    if (!/[\t\n]/.test(t)) return;
+    e.preventDefault();
+    const lines = t.replace(/\r/g, "").split("\n").filter((l) => l.trim()).map((l) => l.split("\t"));
+    const num = (x: string) => x.trim().replace(/\s/g, "").replace(/^(-?\d+),(\d+)$/, "$1.$2");
+    const parsed = lines.filter((c) => !isNaN(Number(num(c[0] || "")))).map((c) => Object.fromEntries(IV_KEYS.map((k, j) => [k, k === "formation" ? (c[j] || "").trim() : num(c[j] || "")])) as Iv);
+    setRows([...rows.slice(0, i), ...parsed, ...rows.slice(i + 1)]);
+  };
+  const save = async () => {
+    setErr(null); setOk(null);
+    try {
+      const r = await api.post(`/wells/${wellId}/ppfg/manual`, { rows, approved, notes });
+      setOk(`Tersimpan sebagai v${r.version} (${r.status}, ${r.intervals} interval).`); setRows([blank()]); setNotes(""); setApproved(false); onSaved();
+    } catch (e: any) { setErr(e.message); }
+  };
+  if (!can("ppfg_edit")) return null;
+  if (!open) return <button onClick={() => setOpen(true)}>+ Input PPFG manual (MD)</button>;
+  return (
+    <div className="card" style={{ marginBottom: 12 }}>
+      <div className="row"><h3 style={{ margin: 0 }}>Input PPFG manual (per interval MD)</h3><span className="sp" /><button onClick={() => setOpen(false)}>Tutup</button></div>
+      <p className="note">Tanpa file Rec 03. Satu baris = satu interval MD dengan nilai konstan (ppg). Tempel langsung dari Excel ke sel mana pun, urutan kolom: MD atas, MD bawah, PP, SFG, FG min, FG max, formasi. TVD diisi otomatis dari survey bila MD ada di rentang survey. Hasilnya versi PPFG baru; versi lama tetap tersimpan.</p>
+      <Err e={err} />
+      <table>
+        <thead><tr><th>MD atas (ft)</th><th>MD bawah (ft)</th><th>PP</th><th>SFG</th><th>FG min</th><th>FG max</th><th>Formasi</th><th></th></tr></thead>
+        <tbody>{rows.map((r, i) => (
+          <tr key={i}>{IV_KEYS.map((k) => <td key={k}><input type={k === "formation" ? "text" : "number"} step="any" value={r[k]} onPaste={(e) => paste(i, e)} onChange={(e) => set(i, k, e.target.value)} style={{ width: k === "formation" ? 120 : 80 }} /></td>)}
+            <td><button onClick={() => setRows(rows.length > 1 ? rows.filter((_, j) => j !== i) : [blank()])}>✕</button></td></tr>
+        ))}</tbody>
+      </table>
+      <div className="row" style={{ marginTop: 8 }}>
+        <button onClick={() => setRows([...rows, { ...blank(), md_top: rows[rows.length - 1]?.md_bottom || "" }])}>+ Interval</button>
+        <input placeholder="catatan (mis. sumber: Navita, PPFG rev 2)" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: 280 }} />
+        {can("ppfg_approve") && <label className="small"><input type="checkbox" checked={approved} onChange={(e) => setApproved(e.target.checked)} /> Sudah approved di sumber (Navita / Geomechanics)</label>}
+        <span className="sp" />
+        <button className="pri" onClick={save}>Simpan versi baru</button>
+      </div>
+      {ok && <div className="small" style={{ color: "#1E9E5A", marginTop: 6 }}>{ok}</div>}
+      {!approved && <div className="small muted" style={{ marginTop: 4 }}>Tanpa centang approved, versi tersimpan sebagai draft dan belum dipakai untuk margin &amp; alert.</div>}
+    </div>
+  );
+}
 
 export default function FormasiFG() {
   const { wellId, can } = useApp();
@@ -36,12 +93,13 @@ export default function FormasiFG() {
         {can("mw_rule") && <select value={mwRule.data?.rule || "bit_passes"} onChange={(e) => act(() => api.post("/settings/mw_rule", { rule: e.target.value }).then(mwRule.reload))}><option value="bit_passes">effective-from bit</option><option value="mud_report">laporan lumpur</option></select>}
       </div>
       <Err e={msg || vers.err} />
+      {wellId && <div style={{ marginBottom: 12 }}><ManualPPFG wellId={wellId} onSaved={() => vers.reload()} /></div>}
       <div className="card" style={{ marginBottom: 12 }}>
         <h3>Versi PPFG (Rec 03)</h3>
         <table>
           <thead><tr><th>Versi</th><th>Status</th><th>TVD datum</th><th>Efektif</th><th>Approved</th><th>Dibuat</th><th>Catatan</th><th></th></tr></thead>
           <tbody>
-            {vers.data?.length === 0 && <tr><td colSpan={8} className="muted">Belum ada PPFG. Upload file Rec 03 di Data &amp; Upload — tiap upload jadi versi draft baru.</td></tr>}
+            {vers.data?.length === 0 && <tr><td colSpan={8} className="muted">Belum ada PPFG. Upload file Rec 03 di Data &amp; Upload, atau isi manual per interval MD di atas.</td></tr>}
             {vers.data?.map((v) => (
               <tr key={v.id} className="click" onClick={() => setVid(v.id)} style={{ background: v.id === vid ? "#EAF1FA" : undefined }}>
                 <td className="mono">v{v.version}</td><td style={{ color: ST[v.status] }}>{v.status}</td><td>{v.tvd_datum}</td><td>{dateOnly(v.effective_date)}</td>

@@ -137,7 +137,8 @@ def _range(pt: ParsedTable):
     return None, None, None, None
 
 
-def store(db: Session, well: Well, pt: ParsedTable, sha: str, user: str, mode: str) -> IngestFile:
+def store(db: Session, well: Well, pt: ParsedTable, sha: str, user: str, mode: str,
+          ppfg_approved: bool = False) -> IngestFile:
     t0, t1, d0, d1 = _range(pt)
     rec = IngestFile(well_id=well.id, filename=pt.filename, sha256=sha, record=pt.record, basis=pt.basis,
                      fmt=pt.fmt, rows=len(pt.data), t_start=t0, t_end=t1, d_start=d0, d_end=d1,
@@ -162,14 +163,16 @@ def store(db: Session, well: Well, pt: ParsedTable, sha: str, user: str, mode: s
         rec.status = "skipped"  # PPFG acuan = Rec 03 basis depth; versi time-based tidak dipakai
         rec.qc = [*rec.qc, {"level": "info", "title": "Rec 03 basis waktu", "text": "dilewati; PPFG memakai file basis depth"}]
     elif pt.record == 3:
-        nxt = (db.scalar(select(func.max(PPFGVersion.version)).where(PPFGVersion.well_id == well.id)) or 0) + 1
-        ver = PPFGVersion(well_id=well.id, version=nxt, status="draft", source_file_id=rec.id, created_by=user,
-                          notes=f"import {pt.filename}")
-        db.add(ver)
-        db.flush()
+        from ..core.ppfg_input import approve_version, new_version
+        ver = new_version(db, well.id, user, f"import {pt.filename}", rec.id)
         keep = [c for c in ("md", "tvd", "pp", "sfg", "fg_min", "fg_max", "shmax", "obg", "formation") if c in df]
         rows = df[keep].replace({np.nan: None}).to_dict("records")
         db.bulk_insert_mappings(PPFGRow, [{**r, "version_id": ver.id} for r in rows])
+        if ppfg_approved:
+            approve_version(db, ver, user, notes=f"{ver.notes} · approved di sumber", how="ppfg_approve_source")
+        rec.qc = [*rec.qc, {"level": "info", "title": f"PPFG v{ver.version} {ver.status}",
+                            "text": "langsung dipakai untuk margin (approved di sumber)" if ppfg_approved else
+                            "draft: approve di Formasi & FG agar dipakai untuk margin & alert"}]
     elif pt.record == 4:
         db.execute(delete(MudWeight).where(MudWeight.well_id == well.id))
         keep = [c for c in ("md", "tvd", "mw", "remark") if c in df]
@@ -202,7 +205,7 @@ def store(db: Session, well: Well, pt: ParsedTable, sha: str, user: str, mode: s
 
 
 def ingest_bytes(db: Session, well: Well, filename: str, content: bytes, user: str, mode: str = "append",
-                 force: bool = False, source_tz: str | None = None) -> list[dict]:
+                 force: bool = False, source_tz: str | None = None, ppfg_approved: bool = False) -> list[dict]:
     """source_tz: zona waktu kolom waktu tanpa offset (default WIB dari setting; Navita, SLB, dan Halliburton memakai
     WIB/UTC+7 menurut klien 28 Nov; 'UTC' hanya untuk file yang ditulis dalam UTC). Kolom waktu yang membawa offset (Z, +07:00) selalu dibaca sesuai offset-nya."""
     settings = get_settings()
@@ -221,7 +224,7 @@ def ingest_bytes(db: Session, well: Well, filename: str, content: bytes, user: s
             continue
         try:
             pt = canonicalize(parse_bytes(name, b), source_tz or settings.source_tz)
-            rec = store(db, well, pt, sha, user, mode)
+            rec = store(db, well, pt, sha, user, mode, ppfg_approved)
             results.append({"file": name, "status": rec.status, "record": rec.record, "basis": rec.basis,
                             "fmt": rec.fmt, "rows": rec.rows, "qc": rec.qc, "id": rec.id})
         except EmptyFile as e:

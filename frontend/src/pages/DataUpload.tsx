@@ -17,7 +17,9 @@ export default function DataUpload() {
   const [busy, setBusy] = useState(false); const [res, setRes] = useState<any[] | null>(null); const [msg, setMsg] = useState<string | null>(null);
   const [mode, setMode] = useState("append");
   const [tz, setTz] = useState("WIB");
+  const [ppfgOk, setPpfgOk] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState("shadow");
   const [edit, setEdit] = useState<any | null>(null);
   const inp = useRef<HTMLInputElement>(null);
 
@@ -27,12 +29,13 @@ export default function DataUpload() {
     Array.from(fl).forEach((f) => fd.append("files", f));
     fd.append("mode", mode);
     fd.append("tz", tz);
+    if (ppfgOk) fd.append("ppfg_approved", "true");
     setBusy(true); setMsg(null);
     try { const r = await api.form(`/wells/${wellId}/upload`, fd); setRes(r.results); q.reload(); files.reload(); reloadWells(); }
     catch (e: any) { setMsg(e.message); } finally { setBusy(false); if (inp.current) inp.current.value = ""; }
   };
   const scan = async () => { setBusy(true); try { const r = await api.post("/ingest/scan"); setRes(r.processed.flatMap((p: any) => p.results.map((x: any) => ({ ...x, file: `${p.well}/${x.file}` })))); await reloadWells(); q.reload(); files.reload(); } catch (e: any) { setMsg(e.message); } finally { setBusy(false); } };
-  const create = async () => { try { await api.post("/wells", { name: newName, role: "train" }); setNewName(""); await reloadWells(); } catch (e: any) { setMsg(e.message); } };
+  const create = async () => { try { await api.post("/wells", { name: newName, role: newRole }); setNewName(""); setNewRole("shadow"); await reloadWells(); } catch (e: any) { setMsg(e.message); } };
   const saveWell = async () => { try { await api.put(`/wells/${wellId}`, edit); setEdit(null); await reloadWells(); q.reload(); } catch (e: any) { setMsg(e.message); } };
   const signoff = async () => { try { await api.post(`/wells/${wellId}/qc/signoff`); q.reload(); } catch (e: any) { setMsg(e.message); } };
   const d = q.data;
@@ -42,7 +45,7 @@ export default function DataUpload() {
   return (
     <>
       <div className="top"><h1>Data &amp; Upload</h1><WellSelect /><span className="sp" />
-        {can("well_edit") && <><input placeholder="nama sumur baru" value={newName} onChange={(e) => setNewName(e.target.value)} /><button onClick={create} disabled={!newName}>+ Sumur</button></>}
+        {can("well_edit") && <><input placeholder="nama sumur baru" value={newName} onChange={(e) => setNewName(e.target.value)} /><select value={newRole} onChange={(e) => setNewRole(e.target.value)} title="shadow = sumur berjalan, tidak ikut training · train = ikut training · blind = sumur uji tetap · case = studi kasus"><option value="shadow">shadow (sumur berjalan)</option><option value="train">train</option><option value="blind">blind</option><option value="case">case</option></select><button onClick={create} disabled={!newName}>+ Sumur</button></>}
       </div>
       <Err e={msg || q.err} />
       {well && (
@@ -63,7 +66,7 @@ export default function DataUpload() {
               <span className="small muted" style={{ flexBasis: "100%" }}>Zona rathole (opsional): open hole di bawah shoe yang tidak ter-cover casing, mis. casing di-set lebih awal. Kosongkan top MD untuk menonaktifkan.</span>
               <label className="f">Rathole top MD (ft)<input type="number" value={edit.rathole?.top_md ?? ""} placeholder="= shoe" onChange={(e) => setEdit({ ...edit, rathole: { ...(edit.rathole || {}), top_md: e.target.value === "" ? null : Number(e.target.value) } })} /></label>
               <label className="f">Rathole base MD (ft)<input type="number" value={edit.rathole?.base_md ?? ""} placeholder="TD section lama" onChange={(e) => setEdit({ ...edit, rathole: { ...(edit.rathole || {}), base_md: e.target.value === "" ? null : Number(e.target.value) } })} /></label>
-              <label className="f">Berlaku sejak (WIB)<input type="datetime-local" value={toLocalInput(edit.rathole?.since)} onChange={(e) => setEdit({ ...edit, rathole: { ...(edit.rathole || {}), since: e.target.value ? e.target.value + ":00+07:00" : null } })} /></label>
+              <label className="f">Rathole berlaku sejak (WIB, kosongkan bila tidak ada rathole)<input type="datetime-local" value={toLocalInput(edit.rathole?.since)} onChange={(e) => setEdit({ ...edit, rathole: { ...(edit.rathole || {}), since: e.target.value ? e.target.value + ":00+07:00" : null } })} /></label>
               <label className="f" style={{ flex: 1 }}>Keterangan rathole<input value={edit.rathole?.note ?? ""} onChange={(e) => setEdit({ ...edit, rathole: { ...(edit.rathole || {}), note: e.target.value } })} placeholder="mis. casing di-set lebih awal, sumber DDR" /></label>
               <div style={{ flexBasis: "100%" }} />
               <button className="pri" onClick={saveWell}>Simpan</button><button onClick={() => setEdit(null)}>Batal</button>
@@ -82,6 +85,7 @@ export default function DataUpload() {
               <input ref={inp} type="file" multiple accept=".las,.LAS,.csv,.CSV,.zip,.txt,.xlsx,.xlsm,.xls" onChange={(e) => upload(e.target.files)} disabled={!can("upload") || busy} />
               <select value={mode} onChange={(e) => setMode(e.target.value)}><option value="append">append (lewati duplikat)</option><option value="replace">replace (timpa timestamp sama)</option></select>
               <select value={tz} onChange={(e) => setTz(e.target.value)} title="Zona waktu kolom waktu di file bila tidak tertulis offset-nya"><option value="WIB">waktu file: WIB</option><option value="UTC">waktu file: UTC</option></select>
+              {can("ppfg_approve") && <label className="small" title="PPFG (Rec 03) di file ini sudah approved oleh Navita / Geomechanics: langsung dipakai untuk margin & alert, versi approved lama jadi superseded"><input type="checkbox" checked={ppfgOk} onChange={(e) => setPpfgOk(e.target.checked)} /> PPFG sudah approved di sumber</label>}
               {can("upload") && <button onClick={scan} disabled={busy}>Scan folder inbox</button>}
               {busy && <span className="muted small">memproses…</span>}
             </div>
