@@ -18,7 +18,9 @@ PUMPS_ON_STATES = {"DRILL_ROT", "SLIDE", "REAM", "WASH", "CIRC"}
 CLEANOUT_STATES = {"REAM", "WASH", "CIRC"}
 
 FEATURES = ["flow_in", "spp", "rpm", "wob", "rop", "hookload", "torque", "bit_depth", "tvd_bit",
-            "off_bottom", "mw", "block_vel", "t_pumps_on", "inc_bit"]
+            "off_bottom", "mw", "block_vel", "t_pumps_on", "inc_bit", "hole_size"]
+# hole_size (dari wells.sections): uji blind 28 Nov MAE 0,253 -> 0,242 (BDSI 60 0,240, GW339 0,247, BLSO-717 0,225).
+# Hidrolika: APL bergantung clearance annulus; tanpa fitur ini model menebak geometri dari "sumur mirip".
 
 
 def derive_state(df: pd.DataFrame) -> pd.Series:
@@ -165,7 +167,7 @@ def add_features(df: pd.DataFrame, mw: pd.DataFrame, survey: pd.DataFrame, secti
     mw_d = pd.Series(asof_step(hole_reached - MW_LAG_FT, mw["md"], mw["mw"]) if len(mw) else np.nan,
                      index=out.index, dtype=float)
     # perubahan MW berbasis waktu (DDR) menimpa sampai MW per kedalaman berubah lagi (displacement di shoe, lumpur baru)
-    out["mw"] = apply_mw_changes(mw_d, mw.attrs.get("changes"), hole_reached)
+    out["mw"] = apply_mw_changes(mw_d, mw.attrs.get("changes"), hole_reached, mw, MW_LAG_FT)
     from .sections import hole_size_series
     out["hole_size"] = hole_size_series(sections, hole_reached)
     if len(survey) and survey["tvd"].notna().sum() >= 2:

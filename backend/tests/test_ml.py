@@ -22,6 +22,7 @@ def synth(n=3000, mw=(9.0, 9.6), seed=0, well="W"):
     for c in ("rpm", "wob", "rop", "hookload", "torque", "off_bottom", "block_vel", "t_pumps_on", "inc_bit"):
         d[c] = r.uniform(0, 1, n)
     d["ecd"] = d["mw"] + 0.0006 * d["flow_in"] + 0.00002 * d["tvd_bit"] + r.normal(0, 0.02, n)
+    d["hole_size"] = 8.5
     d["state"] = "DRILL_ROT"
     d["well"] = well
     return d
