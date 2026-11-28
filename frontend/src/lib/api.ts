@@ -1,3 +1,4 @@
+import { lang } from "./i18n";
 const KEY = "ecd_token";
 
 export function getToken(): string | null {
@@ -27,7 +28,7 @@ async function handle(r: Response) {
 
 function headers(extra: Record<string, string> = {}) {
   const t = getToken();
-  return { ...(t ? { Authorization: `Bearer ${t}` } : {}), ...extra };
+  return { ...(t ? { Authorization: `Bearer ${t}` } : {}), "X-Lang": lang, ...extra };
 }
 
 export const api = {

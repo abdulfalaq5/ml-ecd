@@ -31,6 +31,11 @@
     "HGR_4.5": {"type": "HGR", "name": "Liner hanger 4-1/2\" + running tool", "od": 5.75, "id": 2.5, "weight_ppf": 60}
   },
   "presets": {
+    "BHA_17.5_STD": {"kind": "drill", "name": "BHA 17-1/2\" standar (DC 8-1/4\", tipikal)", "bit_size": 17.5, "friction": {"cased": 0.20, "open": 0.30}, "components": [
+      {"item": "BHA_DIR_8", "length": 95},
+      {"item": "DC_8.25", "count": 6},
+      {"item": "HWDP_5", "count": 15},
+      {"item": "DP_5_19.5"}]},
     "BHA_12.25_STD": {"kind": "drill", "name": "BHA 12-1/4\" standar (DC 8-1/4\")", "bit_size": 12.25, "friction": {"cased": 0.20, "open": 0.30}, "components": [
       {"item": "BHA_DIR_8", "length": 95},
       {"item": "DC_8.25", "count": 6},

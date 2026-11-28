@@ -29,7 +29,7 @@ DEFAULT_PV, DEFAULT_YP = 15.0, 15.0
 # ID casing di atas section yang sedang dibor (konfirmasi klien 24 Nov: 17-1/2"→13-3/8", 12-1/4"→9-5/8", 8-1/2"→7",
 # 6-1/8"→4-1/2"; berat dari WSDP GULA25 & BLSE27: 13-3/8" 54,5#, 9-5/8" 36#, 7" 26#). 17-1/2" di bawah konduktor 20".
 CASING_ID_FOR_HOLE = {26.0: 19.124, 17.5: 19.124, 16.0: 15.124, 12.25: 12.615, 8.5: 8.921, 6.125: 6.276, 6.0: 6.276}
-PRESET_FOR_HOLE = {12.25: "BHA_12.25_STD", 8.5: "BHA_8.5_STD", 6.125: "BHA_6.125_STD"}
+PRESET_FOR_HOLE = {17.5: "BHA_17.5_STD", 12.25: "BHA_12.25_STD", 8.5: "BHA_8.5_STD", 6.125: "BHA_6.125_STD"}
 TJ_LEN_FT = 1.5                # panjang tool joint (box + pin) per joint
 
 

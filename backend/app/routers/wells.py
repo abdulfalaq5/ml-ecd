@@ -17,6 +17,8 @@ from ..ingest.service import get_or_create_well, ingest_bytes
 from ..ingest.watcher import scan_once
 from ..models import IngestFile, MudWeight, MudWeightChange, PPFGVersion, Setting, Survey, User, Well
 from ..core.data import time_range
+from ..core.data import load_survey
+from ..core.welltype import classify as classify_well
 from ..security import PERM, audit, current_user, require
 
 router = APIRouter(prefix="/api", tags=["wells"])
@@ -31,7 +33,8 @@ def well_out(db: Session, w: Well) -> dict:
             "shoe_md": w.shoe_md, "role": w.role, "status": w.status, "notes": w.notes, "rathole": w.rathole,
             "sections": w.sections or [],
             "data_start": r[0].isoformat() if r[0] else None, "data_end": last.isoformat() if last else None,
-            "fresh_min": f(fresh, 0), "ecd_points": int(r[2] or 0)}
+            "fresh_min": f(fresh, 0), "ecd_points": int(r[2] or 0),
+            "well_type": classify_well(load_survey(db, w.id))}
 
 
 class SectionsIn(BaseModel):

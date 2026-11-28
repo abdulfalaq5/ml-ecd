@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 /** Ilustrasi pengeboran (login): rig + derrick, lapisan formasi, sumur berarah dengan casing, drill string & bit,
  *  sirkulasi lumpur (turun di dalam string, naik di annulus), dan kartu mini ECD di antara batas PP/SFG–FG. */
 export function DrillingScene() {
@@ -37,10 +38,10 @@ export function DrillingScene() {
       <rect y="740" width="900" height="110" fill="url(#lime)" />
       <rect y="850" width="900" height="150" fill="url(#res)" />
       <g fill="#5A4632" fontSize="13" fontFamily="Inter, sans-serif" opacity=".75">
-        <text x="400" y="560">batupasir</text>
-        <text x="400" y="684">serpih (shale)</text>
-        <text x="400" y="800">batugamping</text>
-        <text x="640" y="960">reservoir</text>
+        <text x="400" y="560">{t("batupasir")}</text>
+        <text x="400" y="684">{t("serpih (shale)")}</text>
+        <text x="400" y="800">{t("batugamping")}</text>
+        <text x="640" y="960">{t("reservoir")}</text>
       </g>
 
       {/* lubang sumur: vertikal → build → horizontal */}
@@ -48,7 +49,7 @@ export function DrillingScene() {
       {/* casing sampai shoe */}
       <path d="M548 430 V610 M572 430 V610" stroke="url(#steel)" strokeWidth="4" />
       <path d="M543 610 l5 -10 v10z M577 610 l-5 -10 v10z" fill="#5E6B79" />
-      <text x="584" y="614" fontSize="12" fill="#2E2219" fontFamily="Inter, sans-serif">casing shoe</text>
+      <text x="584" y="614" fontSize="12" fill="#2E2219" fontFamily="Inter, sans-serif">{t("casing shoe")}</text>
       {/* drill string */}
       <path d="M560 300 V690 Q560 892 742 897" fill="none" stroke="#2E3A47" strokeWidth="5" />
       {/* mud: turun di dalam string */}
@@ -93,17 +94,17 @@ export function DrillingScene() {
       {/* kartu mini ECD: ECD ⓥ di antara PP/SFG dan FG */}
       <g transform="translate(90 748)">
         <rect width="300" height="176" rx="12" fill="#fff" opacity=".93" stroke="#D5DCE4" />
-        <text x="16" y="26" fontSize="13" fontWeight="600" fill="#1B2430" fontFamily="Inter, sans-serif">ECD ⓥ vs jendela tekanan</text>
+        <text x="16" y="26" fontSize="13" fontWeight="600" fill="#1B2430" fontFamily="Inter, sans-serif">{t("ECD ⓥ vs jendela tekanan")}</text>
         <path d="M16 54 H284" stroke="#D63A40" strokeWidth="2" strokeDasharray="6 4" />
-        <text x="284" y="48" textAnchor="end" fontSize="11" fill="#D63A40" fontFamily="Inter, sans-serif">FG min</text>
+        <text x="284" y="48" textAnchor="end" fontSize="11" fill="#D63A40" fontFamily="Inter, sans-serif">{t("FG min")}</text>
         <path d="M16 146 H284" stroke="#B98900" strokeWidth="2" strokeDasharray="6 4" />
-        <text x="284" y="162" textAnchor="end" fontSize="11" fill="#8A6700" fontFamily="Inter, sans-serif">max(PP, SFG)</text>
+        <text x="284" y="162" textAnchor="end" fontSize="11" fill="#8A6700" fontFamily="Inter, sans-serif">{t("max(PP, SFG)")}</text>
         <path d="M16 124 H284" stroke="#2F6FD1" strokeWidth="1.5" />
-        <text x="20" y="118" fontSize="11" fill="#2F6FD1" fontFamily="Inter, sans-serif">MW</text>
+        <text x="20" y="118" fontSize="11" fill="#2F6FD1" fontFamily="Inter, sans-serif">{t("MW")}</text>
         <path d="M16 106 C46 104 62 100 84 101 S126 96 148 92 S182 84 200 86 S236 70 254 74 L284 70" fill="none" stroke="#E8710A" strokeWidth="3" />
         <path d="M16 96 C62 90 126 86 200 76 S260 60 284 60 L284 82 C252 86 222 98 200 96 S126 106 16 116 Z" fill="#E8710A" opacity=".12" />
         <circle cx="284" cy="70" r="4" fill="#E8710A" />
-        <text x="150" y="80" fontSize="11" fill="#B4560A" fontFamily="Inter, sans-serif">ECD ⓥ</text>
+        <text x="150" y="80" fontSize="11" fill="#B4560A" fontFamily="Inter, sans-serif">{t("ECD ⓥ")}</text>
       </g>
     </svg>
   );

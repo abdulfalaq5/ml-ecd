@@ -4,13 +4,14 @@ import { useApp, useFetch } from "../lib/ctx";
 import { ft, n, toLocalInput, wib } from "../lib/fmt";
 import { EChart, Err, Level, WellSelect, ZoneTag } from "../components/ui";
 import { buildTracks, CHANNELS, type Track } from "../components/tracks";
+import { t } from "../lib/i18n";
 
 const TRACKS: Track[] = [
-  { title: "Hookload · Torque", ch: [CHANNELS.hookload, CHANNELS.torque] },
-  { title: "SPP · Flow In", ch: [CHANNELS.spp, CHANNELS.flow_in] },
-  { title: "ECD ⓥ · ECD terukur · MW · FG", ch: [CHANNELS.ecd_pred, CHANNELS.ecd, CHANNELS.mw, CHANNELS.fg_bit, CHANNELS.lower_bit] },
-  { title: "Flow Out · Active Pit", ch: [CHANNELS.flow_out_pct, CHANNELS.active_pit] },
-  { title: "Skor risiko gabungan", ch: [CHANNELS.risk] },
+  { title: t("Hookload · Torque"), ch: [CHANNELS.hookload, CHANNELS.torque] },
+  { title: t("SPP · Flow In"), ch: [CHANNELS.spp, CHANNELS.flow_in] },
+  { title: t("ECD ⓥ · ECD terukur · MW · FG"), ch: [CHANNELS.ecd_pred, CHANNELS.ecd, CHANNELS.mw, CHANNELS.fg_bit, CHANNELS.lower_bit] },
+  { title: t("Flow Out · Active Pit"), ch: [CHANNELS.flow_out_pct, CHANNELS.active_pit] },
+  { title: t("Skor risiko gabungan"), ch: [CHANNELS.risk] },
 ];
 
 export default function AnalisisAnomali() {
@@ -37,54 +38,54 @@ export default function AnalisisAnomali() {
 
   return (
     <>
-      <div className="top"><h1>Analisis Anomali</h1><WellSelect /><span className="sp" />{data?.model && <span className="chip">Model: {data.model.name} ({data.model.status})</span>}</div>
+      <div className="top"><h1>{t("Analisis Anomali")}</h1><WellSelect /><span className="sp" />{data?.model && <span className="chip">{t("Model:")}{" "}{data.model.name} ({data.model.status})</span>}</div>
       <Err e={err} />
       <div className="card" style={{ marginBottom: 12 }}>
         <div className="row">
-          <label className="f">Dari (WIB)<input type="datetime-local" value={t0} onChange={(e) => setT0(e.target.value)} /></label>
-          <label className="f">Sampai (WIB)<input type="datetime-local" value={t1} onChange={(e) => setT1(e.target.value)} /></label>
-          <label className="f" style={{ flex: 1, minWidth: 260 }}>Cut-off: {cutIso ? wib(cutIso, true) : "tanpa cut-off (semua data)"}
+          <label className="f">{t("Dari (WIB)")}<input type="datetime-local" value={t0} onChange={(e) => setT0(e.target.value)} /></label>
+          <label className="f">{t("Sampai (WIB)")}<input type="datetime-local" value={t1} onChange={(e) => setT1(e.target.value)} /></label>
+          <label className="f" style={{ flex: 1, minWidth: 260 }}>{t("Cut-off:")}{" "}{cutIso ? wib(cutIso, true) : t("tanpa cut-off (semua data)")}
             <input type="range" min={5} max={100} value={cut} onChange={(e) => setCut(Number(e.target.value))} />
           </label>
-          <button className="pri" onClick={() => setApplied({ t0, t1, cutoff: cutIso ? cutIso : null })}>Jalankan</button>
-          {loading && <span className="muted small">menghitung…</span>}
+          <button className="pri" onClick={() => setApplied({ t0, t1, cutoff: cutIso ? cutIso : null })}>{t("Jalankan")}</button>
+          {loading && <span className="muted small">{t("menghitung…")}</span>}
         </div>
-        <p className="note">Mode cut-off: engine hanya melihat data ≤ cut-off (tanpa look-ahead). Data setelah cut-off ditampilkan abu-abu untuk verifikasi. Pilih cut-off sebelum event untuk menguji lead time.</p>
-        {data && !data.empty && <div className="small muted">Data sumur: {wib(data.data_start, true)} → {wib(data.data_end, true)} · ECD terukur {data.ecd_measured_available ? "tersedia" : <b style={{ color: "#E8710A" }}>tidak ada — hanya ECD ⓥ (estimasi)</b>}</div>}
+        <p className="note">{t("Mode cut-off: engine hanya melihat data ≤ cut-off (tanpa look-ahead). Data setelah cut-off ditampilkan abu-abu untuk verifikasi. Pilih cut-off sebelum event untuk menguji lead time.")}</p>
+        {data && !data.empty && <div className="small muted">{t("Data sumur:")}{" "}{wib(data.data_start, true)} → {wib(data.data_end, true)}{" "}{t("· ECD terukur")}{" "}{data.ecd_measured_available ? "tersedia" : <b style={{ color: "#E8710A" }}>{t("tidak ada — hanya ECD ⓥ (estimasi)")}</b>}</div>}
       </div>
-      {data?.empty && <div className="card empty">Belum ada data.</div>}
+      {data?.empty && <div className="card empty">{t("Belum ada data.")}</div>}
       {option && (
         <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr) 340px", alignItems: "start" }}>
           <div className="card"><EChart option={option} height={760} /></div>
           <div className="grid">
             <div className="card">
-              <h3>Lonjakan ECD ⓥ</h3>
-              {ecdv.length === 0 ? <div className="muted small">Tidak ada kenaikan mendadak ECD ⓥ pada jendela ini.</div> : ecdv.map((d: any, i: number) => (
+              <h3>{t("Lonjakan ECD ⓥ")}</h3>
+              {ecdv.length === 0 ? <div className="muted small">{t("Tidak ada kenaikan mendadak ECD ⓥ pada jendela ini.")}</div> : ecdv.map((d: any, i: number) => (
                 <div key={i} className="small" style={{ borderTop: "1px solid #E3E8EE", padding: "6px 0" }}>
-                  <Level v={d.level} /> <span className="mono">{wib(d.start)}–{wib(d.end)}</span> · +{n(d.value)} ppg dari {n(d.baseline)} · {d.state}{d.md ? ` @${ft(d.md)} ft` : ""}
+                  <Level v={d.level} /> <span className="mono">{wib(d.start)}–{wib(d.end)}</span> · +{n(d.value)}{" "}{t("ppg dari")}{" "}{n(d.baseline)} · {d.state}{d.md ? t(" @{p0} ft", { p0: ft(d.md) }) : ""}
                 </div>
               ))}
-              <p className="note">Kenaikan ECD ⓥ ≥ 0.2 ppg dalam 10 mnt pada flow stabil = indikasi awal pack-off / hole problem. Diabaikan 10 mnt setelah pompa nyala; disuppress saat pumps off.</p>
+              <p className="note">{t("Kenaikan ECD ⓥ ≥ 0.2 ppg dalam 10 mnt pada flow stabil = indikasi awal pack-off / hole problem. Diabaikan 10 mnt setelah pompa nyala; disuppress saat pumps off.")}</p>
             </div>
             <div className="card">
-              <h3>Indikator terdeteksi ({data.detections.length})</h3>
+              <h3>{t("Indikator terdeteksi (")}{data.detections.length})</h3>
               <div style={{ maxHeight: 300, overflow: "auto" }}>
                 {data.detections.map((d: any, i: number) => (
                   <div key={i} className="small" style={{ borderTop: "1px solid #E3E8EE", padding: "6px 0" }}>
                     <div className="row"><Level v={d.level} /><ZoneTag z={d.zone} /><span className="mono">{wib(d.start)}</span><span className="muted">{d.state}</span></div>
-                    <div>{d.label}{d.md ? ` @${ft(d.md)} ft` : ""}</div>{d.rec && <div className="muted">Verifikasi: {d.rec}</div>}{d.po_note && <div style={{ color: /MELEBIHI/.test(d.po_note) ? "#B42318" : "#9A6700" }}>⚑ {d.po_note}</div>}{d.note && <div style={{ color: "#9A6700" }}>⚠ {d.note}</div>}
+                    <div>{d.label}{d.md ? t(" @{p0} ft", { p0: ft(d.md) }) : ""}</div>{d.rec && <div className="muted">{t("Verifikasi:")}{" "}{d.rec}</div>}{d.po_note && <div style={{ color: /MELEBIHI/.test(d.po_note) ? "#B42318" : "#9A6700" }}>⚑ {d.po_note}</div>}{d.note && <div style={{ color: "#9A6700" }}>⚠ {d.note}</div>}
                   </div>
                 ))}
               </div>
             </div>
             <div className="card">
-              <h3>Event terkonfirmasi & lead time</h3>
-              {data.lead_times.length === 0 && <div className="muted small">Belum ada event Dikonfirmasi di sumur ini (Riwayat Event).</div>}
+              <h3>{t("Event terkonfirmasi & lead time")}</h3>
+              {data.lead_times.length === 0 && <div className="muted small">{t("Belum ada event Dikonfirmasi di sumur ini (Riwayat Event).")}</div>}
               {data.lead_times.map((l: any, i: number) => (
                 <div key={i} className="small" style={{ borderTop: "1px solid #E3E8EE", padding: "6px 0" }}>
                   <b>{l.event}</b> · {wib(l.onset, true)}<br />
-                  Indikasi pertama: {l.first ? `${wib(l.first)} (${l.first_lead_min} mnt sebelum)` : "—"}<br />
-                  WARNING pertama: {l.warning ? `${wib(l.warning)} (${l.warning_lead_min} mnt sebelum)` : "—"}
+                  {t("Indikasi pertama:")}{" "}{l.first ? t("{p0} ({p1} mnt sebelum)", { p0: wib(l.first), p1: l.first_lead_min }) : "—"}<br />
+                  {t("WARNING pertama:")}{" "}{l.warning ? t("{p0} ({p1} mnt sebelum)", { p0: wib(l.warning), p1: l.warning_lead_min }) : "—"}
                 </div>
               ))}
             </div>

@@ -48,7 +48,8 @@ def test_annular_loss_string_and_shoe():
     c, _ = hy.annular_loss(500, 8000, 10, R, 8.5, 8.681, 4000, string)    # casing sedikit lebih besar → lebih kecil
     assert a == pytest.approx(b) and c < a
     assert hy.annular_loss(500, 9000, 10, R, 8.5, 8.681, 4000, string)[0] > c   # makin dalam makin besar
-    assert "pendekatan" in hy.string_for_hole(17.5)[0]
+    assert "17-1/2" in hy.string_for_hole(17.5)[0]          # preset 17-1/2" (tipikal, 28 Nov)
+    assert "pendekatan" in hy.string_for_hole(26.0)[0]
     assert hy.string_for_hole(8.5, "BHA_12.25_STD")[0].startswith("BHA 12-1/4")       # preset dari data section
     no_tj = tuple((nm, od, ln, None, j) for nm, od, ln, _, j in string)
     assert hy.annular_loss(500, 8000, 10, R, 8.5, 8.681, 4000, no_tj)[0] < c         # tool joint menambah rugi

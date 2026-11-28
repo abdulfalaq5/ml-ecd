@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { useApp } from "../lib/ctx";
 import { Err } from "../components/ui";
 import { DrillingScene, RigIcon } from "../components/DrillingScene";
+import { t } from "../lib/i18n";
 
 export default function Login() {
   const [u, setU] = useState(""); const [p, setP] = useState("");
@@ -20,25 +21,25 @@ export default function Login() {
   };
   return (
     <div className="login">
-      <section className="hero" aria-label="Ilustrasi pengeboran sumur">
+      <section className="hero" aria-label={t("Ilustrasi pengeboran sumur")}>
         <DrillingScene />
         <div className="tag">
-          <h2>Pantau ECD di setiap meter pengeboran</h2>
-          <p>Nowcast ECD dari parameter permukaan, margin terhadap jendela tekanan PP/SFG–FG, dan indikasi dini masalah lubang.</p>
+          <h2>{t("Pantau ECD di setiap meter pengeboran")}</h2>
+          <p>{t("Nowcast ECD dari parameter permukaan, margin terhadap jendela tekanan PP/SFG–FG, dan indikasi dini masalah lubang.")}</p>
         </div>
       </section>
       <div className="side">
         <form className="card" onSubmit={submit}>
           <div className="row" style={{ gap: 12 }}>
             <RigIcon size={36} />
-            <div><b style={{ fontSize: 19 }}>Paningal Sense</b><div className="muted small">ECD & Hole Condition · PHR Drilling</div></div>
+            <div><b style={{ fontSize: 19 }}>{t("Paningal Sense")}</b><div className="muted small">{t("ECD & Hole Condition · PHR Drilling")}</div></div>
           </div>
-          <div className="muted small" style={{ marginTop: -2 }}>Masuk untuk melanjutkan</div>
-          <label className="f">Username<input value={u} onChange={(e) => setU(e.target.value)} autoFocus autoComplete="username" /></label>
-          <label className="f">Password
+          <div className="muted small" style={{ marginTop: -2 }}>{t("Masuk untuk melanjutkan")}</div>
+          <label className="f">{t("Username")}<input value={u} onChange={(e) => setU(e.target.value)} autoFocus autoComplete="username" /></label>
+          <label className="f">{t("Password")}
             <span className="pw">
               <input type={show ? "text" : "password"} value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" />
-              <button type="button" className="pw-eye" onClick={() => setShow(!show)} aria-label={show ? "Sembunyikan password" : "Tampilkan password"} aria-pressed={show} title={show ? "Sembunyikan password" : "Tampilkan password"}>
+              <button type="button" className="pw-eye" onClick={() => setShow(!show)} aria-label={show ? t("Sembunyikan password") : t("Tampilkan password")} aria-pressed={show} title={show ? t("Sembunyikan password") : t("Tampilkan password")}>
                 {show ? (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3l18 18" /><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" /><path d="M9.9 5.1A10.4 10.4 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1M6.6 6.6C4 8.3 2.5 12 2.5 12s3.5 7 9.5 7a9.7 9.7 0 0 0 5.4-1.6" /></svg>
                 ) : (
@@ -48,9 +49,9 @@ export default function Login() {
             </span>
           </label>
           <Err e={err} />
-          <button className="pri" disabled={busy || !u || !p}>{busy ? "Masuk…" : "Masuk"}</button>
-          <div className="note">Akun lokal. Hubungi admin Data/ML untuk membuat akun atau reset password. Integrasi SSO PHR menyusul.</div>
-          <div className="foot">Alat bantu keputusan · setiap alert wajib diverifikasi engineer</div>
+          <button className="pri" disabled={busy || !u || !p}>{busy ? t("Masuk…") : t("Masuk")}</button>
+          <div className="note">{t("Akun lokal. Hubungi admin Data/ML untuk membuat akun atau reset password. Integrasi SSO PHR menyusul.")}</div>
+          <div className="foot">{t("Alat bantu keputusan · setiap alert wajib diverifikasi engineer")}</div>
         </form>
       </div>
     </div>

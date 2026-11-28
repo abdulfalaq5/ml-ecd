@@ -1,3 +1,4 @@
+import { t as L } from "../lib/i18n";
 import { AX, TIP } from "./ui";
 import { wib, C, LEVEL_COLOR } from "../lib/fmt";
 
@@ -14,17 +15,17 @@ export const CHANNELS: Record<string, Ch> = {
   rop: { key: "rop", name: "ROP", unit: "ft/h", color: C.rop, min: 0, max: 200 },
   block_pos: { key: "block_pos", name: "Block Pos", unit: "ft", color: C.depth },
   bit_depth: { key: "bit_depth", name: "Bit Depth", unit: "ft", color: C.depth },
-  ecd: { key: "ecd", name: "ECD terukur", unit: "ppg", color: C.ecd },
+  ecd: { key: "ecd", name: L("ECD terukur"), unit: "ppg", color: C.ecd },
   ecd_pred: { key: "ecd_pred", name: "ECD ⓥ", unit: "ppg", color: C.ecd, dash: true, band: ["ecd_lo", "ecd_hi"] },
-  ecd_po: { key: "ecd_po", name: "ECD di bawah sensor (pack-off, estimasi)", unit: "ppg", color: "#B42318", band: ["ecd_pred", "ecd_po_hi"] },
-  ecd_po_hi: { key: "ecd_po_hi", name: "ECD pack-off batas atas (sumbatan total)", unit: "ppg", color: "#B42318", dash: true },
+  ecd_po: { key: "ecd_po", name: L("ECD di bawah sensor (pack-off, estimasi)"), unit: "ppg", color: "#B42318", band: ["ecd_pred", "ecd_po_hi"] },
+  ecd_po_hi: { key: "ecd_po_hi", name: L("ECD pack-off batas atas (sumbatan total)"), unit: "ppg", color: "#B42318", dash: true },
   fg_bit: { key: "fg_bit", name: "FG bit", unit: "ppg", color: C.fg },
   lower_bit: { key: "lower_bit", name: "max(PP,SFG)", unit: "ppg", color: C.sfg, dash: true },
   mw: { key: "mw", name: "MW", unit: "ppg", color: C.mw },
   flow_out_pct: { key: "flow_out_pct", name: "Flow Out", unit: "%", color: C.fo, min: 0, max: 100 },
   active_pit: { key: "active_pit", name: "Active Pit", unit: "bbl", color: C.pit },
   gain_loss: { key: "gain_loss", name: "Gain/Loss", unit: "bbl", color: "#B42318" },
-  risk: { key: "risk", name: "Skor risiko", unit: "0–1", color: "#D63A40", min: 0, max: 1 },
+  risk: { key: "risk", name: L("Skor risiko"), unit: "0–1", color: "#D63A40", min: 0, max: 1 },
 };
 
 export const PRESETS: Record<string, string[][]> = {
@@ -82,7 +83,7 @@ export function buildTracks(s: Record<string, any[]>, tracks: Track[], o: Opt = 
       });
       if (o.after?.[c.key]) {
         const at = o.after.t || [];
-        series.push({ type: "line", name: c.name + " (setelah cut-off)", data: at.map((tt: string, k: number) => V ? [o.after![c.key][k], tt] : [tt, o.after![c.key][k]]), ...axisRef, showSymbol: false, lineStyle: { color: "#9AA5B1", width: 1.2 }, itemStyle: { color: "#9AA5B1" } });
+        series.push({ type: "line", name: c.name + L(" (setelah cut-off)"), data: at.map((tt: string, k: number) => V ? [o.after![c.key][k], tt] : [tt, o.after![c.key][k]]), ...axisRef, showSymbol: false, lineStyle: { color: "#9AA5B1", width: 1.2 }, itemStyle: { color: "#9AA5B1" } });
       }
     });
     // judul track

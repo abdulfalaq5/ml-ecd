@@ -1,10 +1,12 @@
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { FLOWS, HOWTOS, LIMITS, LIVE_REQS, MENUS, TERMS, type HowTo, type Limit, type MenuGuide, type Req } from "../lib/guide";
+import { t } from "../lib/i18n";
 
 /* ---------- pencarian ---------- */
 const STOP = new Set(["cara", "bagaimana", "gimana", "untuk", "yang", "di", "ke", "dan", "atau", "apa", "saya", "mau", "ingin", "pingin",
-  "itu", "ini", "dong", "ya", "nya", "melakukan", "bisa", "tolong", "dengan", "pada", "dari", "buat", "bikin", "kalau", "kalo", "menu", "tombol", "fungsi"]);
+  "itu", "ini", "dong", "ya", "nya", "melakukan", "bisa", "tolong", "dengan", "pada", "dari", "buat", "bikin", "kalau", "kalo", "menu", "tombol", "fungsi",
+  "how", "to", "do", "i", "the", "a", "an", "of", "for", "in", "on", "is", "it", "can", "what", "my", "me", "with", "and", "or", "button"]);
 // sinonim sederhana: kata yang diketik user → kata yang dipakai di panduan
 const SYN: Record<string, string[]> = {
   latih: ["training"], melatih: ["training"], train: ["training"], retrain: ["training"], pelatihan: ["training"],
@@ -47,7 +49,7 @@ function Hl({ text, words }: { text: string; words: string[] }) {
 }
 
 const menuOf = (key?: string) => MENUS.find((m) => m.key === key);
-const SUGGEST = ["seberapa akurat", "syarat realtime", "cek hasil training", "upload file besar", "approve PPFG", "kenapa UNAVAILABLE", "buat laporan", "konfirmasi event", "ganti password", "zona rathole", "cut-off", "bending moment", "ramalan 6 jam"];
+const SUGGEST = [t("upload harian"), t("data kosong"), t("input PPFG manual"), "section", t("MW berubah waktu"), t("seberapa akurat"), t("syarat realtime"), t("cek hasil training"), t("upload file besar"), t("approve PPFG"), t("kenapa UNAVAILABLE"), t("buat laporan"), t("konfirmasi event"), t("ganti password"), t("zona rathole"), "cut-off", t("bending moment"), t("ramalan 6 jam")];
 
 /* ---------- komponen tampilan ---------- */
 function Steps({ h, words }: { h: HowTo; words: string[] }) {
@@ -57,8 +59,8 @@ function Steps({ h, words }: { h: HowTo; words: string[] }) {
       <ol className="guide-steps">{h.steps.map((s, i) => <li key={i}><Hl text={s} words={words} /></li>)}</ol>
       {h.note && <div className="note" style={{ marginTop: 6 }}><Hl text={h.note} words={words} /></div>}
       <div className="row small" style={{ marginTop: 8 }}>
-        {h.who && <span className="chip">Peran: {h.who}</span>}
-        {m && m.key !== "panduan" && <Link to={m.path} className="chip guide-go">Buka {m.title} →</Link>}
+        {h.who && <span className="chip">{t("Peran:")}{" "}{h.who}</span>}
+        {m && m.key !== "panduan" && <Link to={m.path} className="chip guide-go">{t("Buka")}{" "}{m.title} →</Link>}
       </div>
     </div>
   );
@@ -69,11 +71,11 @@ function MenuCard({ m, words, open }: { m: MenuGuide; words: string[]; open?: bo
     <details className="card guide-menu" open={open} id={`menu-${m.key}`}>
       <summary><b><Hl text={m.title} words={words} /></b><span className="muted small"> — <Hl text={m.purpose.split(":")[0].split(".")[0]} words={words} /></span></summary>
       <p className="small" style={{ margin: "10px 0 4px" }}><Hl text={m.purpose} words={words} /></p>
-      <p className="small muted" style={{ margin: "0 0 10px" }}><b>Kapan dipakai:</b> <Hl text={m.when} words={words} /></p>
-      <table><thead><tr><th style={{ width: "28%" }}>Tombol / kontrol</th><th>Fungsi</th><th style={{ width: "22%" }}>Siapa yang bisa</th></tr></thead>
-        <tbody>{m.controls.map((c) => <tr key={c.name}><td><b><Hl text={c.name} words={words} /></b></td><td className="small"><Hl text={c.desc} words={words} /></td><td className="small muted">{c.who || "semua peran"}</td></tr>)}</tbody></table>
+      <p className="small muted" style={{ margin: "0 0 10px" }}><b>{t("Kapan dipakai:")}</b> <Hl text={m.when} words={words} /></p>
+      <table><thead><tr><th style={{ width: "28%" }}>{t("Tombol / kontrol")}</th><th>{t("Fungsi")}</th><th style={{ width: "22%" }}>{t("Siapa yang bisa")}</th></tr></thead>
+        <tbody>{m.controls.map((c) => <tr key={c.name}><td><b><Hl text={c.name} words={words} /></b></td><td className="small"><Hl text={c.desc} words={words} /></td><td className="small muted">{c.who || t("semua peran")}</td></tr>)}</tbody></table>
       {m.tips?.map((t, i) => <div key={i} className="note" style={{ marginTop: 8 }}>{t}</div>)}
-      {m.key !== "panduan" && <div style={{ marginTop: 10 }}><Link to={m.path} className="chip guide-go">Buka {m.title} →</Link></div>}
+      {m.key !== "panduan" && <div style={{ marginTop: 10 }}><Link to={m.path} className="chip guide-go">{t("Buka")}{" "}{m.title} →</Link></div>}
     </details>
   );
 }
@@ -112,8 +114,8 @@ export default function Panduan() {
         if (sc) out.push({
           kind: "Tombol", id: `c-${m.key}-${c.name}`, title: `${c.name}`, text: c.desc, menu: m, score: sc,
           body: <div className="small"><div><Hl text={c.desc} words={hlWords} /></div>
-            <div className="row" style={{ marginTop: 6 }}><span className="chip">di menu {m.title}</span>{c.who && <span className="chip">Peran: {c.who}</span>}
-              {m.key !== "panduan" && <Link to={m.path} className="chip guide-go">Buka menu →</Link>}</div></div>,
+            <div className="row" style={{ marginTop: 6 }}><span className="chip">{t("di menu")}{" "}{m.title}</span>{c.who && <span className="chip">{t("Peran:")}{" "}{c.who}</span>}
+              {m.key !== "panduan" && <Link to={m.path} className="chip guide-go">{t("Buka menu →")}</Link>}</div></div>,
         });
       }
     }
@@ -122,7 +124,7 @@ export default function Panduan() {
       if (s) out.push({ kind: "Batasan", id: "l-" + l.id, title: l.title, text: l.desc, score: s + 1, body: <LimitView l={l} words={hlWords} /> });
     }
     for (const r of LIVE_REQS) {
-      const s = score(groups, r.title, (r.keywords || "") + " syarat live monitor realtime", r.need + " " + r.ifMissing);
+      const s = score(groups, r.title, (r.keywords || "") + t(" syarat live monitor realtime"), r.need + " " + r.ifMissing);
       if (s) out.push({ kind: "Syarat", id: "r-" + r.id, title: r.title, text: r.need, menu: menuOf(r.where), score: s + 1, body: <ReqView r={r} words={hlWords} /> });
     }
     for (const t of TERMS) {
@@ -147,28 +149,28 @@ export default function Panduan() {
 
   return (
     <>
-      <div className="top"><h1>Panduan</h1><span className="muted small">alur kerja · menu &amp; tombol · cara melakukan sesuatu · batasan sistem · syarat Live Monitor · istilah</span></div>
+      <div className="top"><h1>{t("Panduan")}</h1><span className="muted small">{t("alur kerja · menu & tombol · cara melakukan sesuatu · batasan sistem · syarat Live Monitor · istilah")}</span></div>
 
       <div className="card guide-search">
-        <label htmlFor="guide-q" className="small muted">Cari cara melakukan sesuatu</label>
+        <label htmlFor="guide-q" className="small muted">{t("Cari cara melakukan sesuatu")}</label>
         <div className="guide-input">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          <input id="guide-q" type="search" autoFocus value={q} onChange={(e) => setQuery(e.target.value)} placeholder="mis. cek hasil training, upload file, approve PPFG, kenapa UNAVAILABLE…" />
-          {q && <button type="button" className="guide-clear" onClick={() => setQuery("")} aria-label="Hapus pencarian">×</button>}
+          <input id="guide-q" type="search" autoFocus value={q} onChange={(e) => setQuery(e.target.value)} placeholder={t("mis. cek hasil training, upload file, approve PPFG, kenapa UNAVAILABLE…")} />
+          {q && <button type="button" className="guide-clear" onClick={() => setQuery("")} aria-label={t("Hapus pencarian")}>×</button>}
         </div>
         <div className="row small" style={{ marginTop: 8, gap: 6 }}>
-          <span className="muted">Contoh:</span>
+          <span className="muted">{t("Contoh:")}</span>
           {SUGGEST.map((s) => <button key={s} type="button" className="chip guide-sug" onClick={() => setQuery(s)}>{s}</button>)}
         </div>
       </div>
 
       {words.length > 0 || hits.length > 0 ? (
         <div style={{ marginTop: 12 }}>
-          <div className="muted small" style={{ marginBottom: 8 }}>{hits.length ? `${hits.length} hasil untuk "${q}"` : `Tidak ada hasil untuk "${q}". Coba kata lain, mis. "training", "upload", "laporan", "event".`}</div>
+          <div className="muted small" style={{ marginBottom: 8 }}>{hits.length ? t("{p0} hasil untuk \"{p1}\"", { p0: hits.length, p1: q }) : t("Tidak ada hasil untuk \"{p0}\". Coba kata lain, mis. \"training\", \"upload\", \"laporan\", \"event\".", { p0: q })}</div>
           <div className="grid">
             {hits.map((h) => h.kind === "Menu" ? <div key={h.id}>{h.body}</div> : (
               <div key={h.id} className="card">
-                <div className="row" style={{ marginBottom: 6 }}><span className={`lvl guide-kind k-${h.kind}`}>{h.kind}</span><b><Hl text={h.title} words={hlWords} /></b>
+                <div className="row" style={{ marginBottom: 6 }}><span className={`lvl guide-kind k-${h.kind}`}>{t(h.kind)}</span><b><Hl text={h.title} words={hlWords} /></b>
                   {h.kind === "Tombol" && h.menu && <span className="muted small">· {h.menu.title}</span>}</div>
                 {h.body}
               </div>
@@ -178,7 +180,7 @@ export default function Panduan() {
       ) : (
         <div style={{ marginTop: 12 }}>
           <div className="tabs" role="tablist">
-            {([["alur", "Alur kerja"], ["menu", "Menu & tombol"], ["cara", "Cara melakukan…"], ["batasan", "Batasan sistem"], ["live", "Syarat Live Monitor"], ["istilah", "Istilah"]] as const).map(([k, l]) =>
+            {([["alur", t("Alur kerja")], ["menu", t("Menu & tombol")], ["cara", t("Cara melakukan…")], ["batasan", t("Batasan sistem")], ["live", t("Syarat Live Monitor")], ["istilah", t("Istilah")]] as const).map(([k, l]) =>
               <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}
           </div>
           {tab === "alur" && <div className="grid">{FLOWS.map((f) => <div key={f.id} className="card"><h3>{f.title} <span className="muted small" style={{ fontWeight: 400 }}>· {f.who}</span></h3><FlowView f={f} /></div>)}</div>}
@@ -219,7 +221,7 @@ function LimitView({ l, words }: { l: Limit; words: string[] }) {
   return (
     <div className="small">
       <div><Hl text={l.desc} words={words} /></div>
-      <div className="guide-impact"><b>Artinya bagi user:</b> <Hl text={l.impact} words={words} /></div>
+      <div className="guide-impact"><b>{t("Artinya bagi user:")}</b> <Hl text={l.impact} words={words} /></div>
       <div className="row" style={{ marginTop: 6 }}><span className="chip">{l.group}</span></div>
     </div>
   );
@@ -229,11 +231,11 @@ function ReqView({ r, words }: { r: Req; words: string[] }) {
   const m = menuOf(r.where);
   return (
     <div className="small">
-      <div><b>Yang dibutuhkan:</b> <Hl text={r.need} words={words} /></div>
-      <div className="guide-impact"><b>Bila tidak terpenuhi:</b> <Hl text={r.ifMissing} words={words} /></div>
+      <div><b>{t("Yang dibutuhkan:")}</b> <Hl text={r.need} words={words} /></div>
+      <div className="guide-impact"><b>{t("Bila tidak terpenuhi:")}</b> <Hl text={r.ifMissing} words={words} /></div>
       <div className="row" style={{ marginTop: 6 }}>
-        <span className={`lvl ${r.required ? "k-wajib" : "k-opsional"}`}>{r.required ? "Wajib" : "Opsional / disarankan"}</span>
-        {m && <Link to={m.path} className="chip guide-go">Buka {m.title} →</Link>}
+        <span className={`lvl ${r.required ? "k-wajib" : "k-opsional"}`}>{r.required ? t("Wajib") : t("Opsional / disarankan")}</span>
+        {m && <Link to={m.path} className="chip guide-go">{t("Buka")}{" "}{m.title} →</Link>}
       </div>
     </div>
   );
@@ -243,7 +245,7 @@ function LimitsTab() {
   const groups = Array.from(new Set(LIMITS.map((l) => l.group)));
   return (
     <div className="grid">
-      <div className="note">Bagian ini menjelaskan apa yang <b>tidak</b> bisa dilakukan sistem dan seberapa jauh hasilnya bisa dipercaya, supaya harapan user sesuai kemampuan sistem. Angka akurasi per 22 Nov 2026 (model ecd-rf v1); akan berubah setelah training ulang.</div>
+      <div className="note">{t("Bagian ini menjelaskan apa yang")}{" "}<b>{t("tidak")}</b>{" "}{t("bisa dilakukan sistem dan seberapa jauh hasilnya bisa dipercaya, supaya harapan user sesuai kemampuan sistem. Angka akurasi per 22 Nov 2026 (model ecd-rf v1); akan berubah setelah training ulang.")}</div>
       {groups.map((g) => (
         <div key={g} className="card">
           <h3>{g}</h3>
@@ -259,22 +261,22 @@ function LimitsTab() {
 function LiveTab() {
   return (
     <div className="grid">
-      <div className="note">Live Monitor bukan koneksi langsung ke Navita dan bukan pengganti tampilan realtime Navita. Aplikasi ini lapisan analisa (ECD ⓥ, margin, anomali, bending) di atas data ekspor Navita, sehingga sifatnya near-realtime: tertinggal sebesar interval ekspor. Monitor terus terbarui bila file ekspor Navita terus masuk ke folder pantau server. Checklist di bawah menjelaskan apa yang harus ada, dan apa gejalanya bila tidak terpenuhi.</div>
+      <div className="note">{t("Live Monitor bukan koneksi langsung ke Navita dan bukan pengganti tampilan realtime Navita. Aplikasi ini lapisan analisa (ECD ⓥ, margin, anomali, bending) di atas data ekspor Navita, sehingga sifatnya near-realtime: tertinggal sebesar interval ekspor. Monitor terus terbarui bila file ekspor Navita terus masuk ke folder pantau server. Checklist di bawah menjelaskan apa yang harus ada, dan apa gejalanya bila tidak terpenuhi.")}</div>
       <div className="card">
-        <h3>Alur data realtime</h3>
+        <h3>{t("Alur data realtime")}</h3>
         <div className="guide-flow">
-          {[["Navita di rig", "Data rig + manual entry MW (Rec 04) oleh RTO"], ["Ekspor berkala", "Rec 01 Time (+ Rec 02 bila ada PWD), tiap 1–5 menit"],
-            ["Folder pantau server", "data/inbox/<nama sumur>/ — dipindai tiap 60 detik"], ["Ingest + QC", "Data masuk database, temuan QC dicatat"],
-            ["Analisis", "State, ECD ⓥ, margin, detektor anomali, level alert"], ["Layar", "Live Monitor refresh 30 dtk, Overview 60 dtk"]].map(([a, b], i) => (
+          {[[t("Navita di rig"), t("Data rig + manual entry MW (Rec 04) oleh RTO")], [t("Ekspor berkala"), t("Rec 01 Time (+ Rec 02 bila ada PWD), tiap 1–5 menit")],
+            [t("Folder pantau server"), t("data/inbox/<nama sumur>/ — dipindai tiap 60 detik")], [t("Ingest + QC"), t("Data masuk database, temuan QC dicatat")],
+            [t("Analisis"), t("State, ECD ⓥ, margin, detektor anomali, level alert")], [t("Layar"), t("Live Monitor refresh 30 dtk, Overview 60 dtk")]].map(([a, b], i) => (
             <div key={i} className="guide-step"><div className="guide-num">{i + 1}</div><div><b>{a}</b><div className="small muted">{b}</div></div></div>
           ))}
         </div>
       </div>
       <div className="card">
-        <h3>Checklist syarat</h3>
-        <table><thead><tr><th style={{ width: "26%" }}>Syarat</th><th>Yang dibutuhkan</th><th style={{ width: "30%" }}>Bila tidak terpenuhi</th></tr></thead>
+        <h3>{t("Checklist syarat")}</h3>
+        <table><thead><tr><th style={{ width: "26%" }}>{t("Syarat")}</th><th>{t("Yang dibutuhkan")}</th><th style={{ width: "30%" }}>{t("Bila tidak terpenuhi")}</th></tr></thead>
           <tbody>{LIVE_REQS.map((r) => (
-            <tr key={r.id}><td><b>{r.title}</b><div style={{ marginTop: 4 }}><span className={`lvl ${r.required ? "k-wajib" : "k-opsional"}`}>{r.required ? "Wajib" : "Opsional"}</span></div></td>
+            <tr key={r.id}><td><b>{r.title}</b><div style={{ marginTop: 4 }}><span className={`lvl ${r.required ? "k-wajib" : "k-opsional"}`}>{r.required ? t("Wajib") : t("Opsional")}</span></div></td>
               <td className="small">{r.need}</td><td className="small muted">{r.ifMissing}</td></tr>
           ))}</tbody></table>
       </div>

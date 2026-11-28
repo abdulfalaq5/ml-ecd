@@ -3,7 +3,7 @@ import { api, getToken, setToken } from "./api";
 
 export type User = { id: number; username: string; full_name: string; role: string; role_label: string; perms: string[] };
 export type Well = { id: number; name: string; section: string; role: string; status: string; shoe_md: number | null; rathole?: { top_md: number; base_md: number; since: string | null; note: string } | null;
-  data_start: string | null; data_end: string | null; fresh_min: number | null; ecd_points: number; field: string; aliases: string[]; notes: string };
+  data_start: string | null; data_end: string | null; fresh_min: number | null; ecd_points: number; field: string; aliases: string[]; notes: string; well_type?: string | null };
 
 type Ctx = {
   user: User | null; wells: Well[]; wellId: number | null; well: Well | null;

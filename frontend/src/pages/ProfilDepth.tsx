@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import { useApp, useFetch } from "../lib/ctx";
 import { C, RATHOLE, ft, n } from "../lib/fmt";
 import { AX, EChart, Err, TIP, WellSelect } from "../components/ui";
+import { t } from "../lib/i18n";
 
 export default function ProfilDepth() {
   const { wellId } = useApp();
@@ -16,22 +17,22 @@ export default function ProfilDepth() {
       series.push(line("PP", pp.pp, pp.md, C.pp), line("SFG", pp.sfg, pp.md, C.sfg, true), line("FG_min", pp.fg_min, pp.md, C.fg), line("FG_max", pp.fg_max, pp.md, "#B42318", true, 1));
     }
     if (data.mw?.md) series.push({ ...line("MW", data.mw.mw, data.mw.md, C.mw, false, 2), step: "end" });
-    if (data.ecd_measured?.md) series.push({ type: "scatter", name: "ECD terukur", data: data.ecd_measured.md.map((m: number, i: number) => [data.ecd_measured.ecd[i], m]), symbolSize: 3, itemStyle: { color: C.ecd } });
-    if (data.rathole) series.push({ type: "line", name: "Zona rathole", data: [], itemStyle: { color: RATHOLE }, markArea: { silent: true, itemStyle: { color: RATHOLE + "33", borderColor: RATHOLE, borderType: "dashed", borderWidth: 1 }, label: { show: true, position: "insideTopRight", color: "#8A4B00", fontSize: 11, formatter: `rathole ${ft(data.rathole.top_md)}–${ft(data.rathole.base_md)} ft` }, data: [[{ yAxis: data.rathole.top_md }, { yAxis: data.rathole.base_md }]] } });
-    if (data.shoe_md) series.push({ type: "line", name: "Shoe", data: [], markLine: { symbol: "none", data: [{ yAxis: data.shoe_md }], lineStyle: { color: "#5B6775", type: "dotted" }, label: { formatter: `shoe ${ft(data.shoe_md)} ft`, color: "#5B6775" } } });
+    if (data.ecd_measured?.md) series.push({ type: "scatter", name: t("ECD terukur"), data: data.ecd_measured.md.map((m: number, i: number) => [data.ecd_measured.ecd[i], m]), symbolSize: 3, itemStyle: { color: C.ecd } });
+    if (data.rathole) series.push({ type: "line", name: t("Zona rathole"), data: [], itemStyle: { color: RATHOLE }, markArea: { silent: true, itemStyle: { color: RATHOLE + "33", borderColor: RATHOLE, borderType: "dashed", borderWidth: 1 }, label: { show: true, position: "insideTopRight", color: "#8A4B00", fontSize: 11, formatter: t("rathole {p0}–{p1} ft", { p0: ft(data.rathole.top_md), p1: ft(data.rathole.base_md) }) }, data: [[{ yAxis: data.rathole.top_md }, { yAxis: data.rathole.base_md }]] } });
+    if (data.shoe_md) series.push({ type: "line", name: "Shoe", data: [], markLine: { symbol: "none", data: [{ yAxis: data.shoe_md }], lineStyle: { color: "#5B6775", type: "dotted" }, label: { formatter: t("shoe {p0} ft", { p0: ft(data.shoe_md) }), color: "#5B6775" } } });
     return {
       backgroundColor: "transparent", animation: false, legend: { textStyle: { color: "#3A4552" }, top: 0 },
       grid: { left: 70, right: 30, top: 40, bottom: 40 }, tooltip: { ...TIP, trigger: "item" },
       xAxis: { type: "value", name: "ppg", nameLocation: "middle", nameGap: 26, scale: true, ...AX, position: "top" },
-      yAxis: { type: "value", name: "MD (ft)", inverse: true, ...AX, nameLocation: "middle", nameGap: 50 },
+      yAxis: { type: "value", name: t("MD (ft)"), inverse: true, ...AX, nameLocation: "middle", nameGap: 50 },
       dataZoom: [{ type: "inside", yAxisIndex: 0 }, { type: "slider", yAxisIndex: 0, right: 0, width: 14, textStyle: { color: "#5B6775" } }],
       series,
     };
   }, [data]);
   return (
     <>
-      <div className="top"><h1>Profil Depth</h1><WellSelect /><span className="sp" />
-        {data?.ppfg ? <span className="chip">PPFG Rec 03 v{data.ppfg.version} · {data.ppfg.status}</span> : data && <span className="chip" style={{ color: "#E07A10" }}>Belum ada PPFG approved — approve di Formasi &amp; FG</span>}
+      <div className="top"><h1>{t("Profil Depth")}</h1><WellSelect /><span className="sp" />
+        {data?.ppfg ? <span className="chip">{t("PPFG Rec 03 v")}{data.ppfg.version} · {data.ppfg.status}</span> : data && <span className="chip" style={{ color: "#E07A10" }}>{t("Belum ada PPFG approved — approve di Formasi & FG")}</span>}
       </div>
       <Err e={err} />
       {data && (
@@ -39,14 +40,14 @@ export default function ProfilDepth() {
           <div className="card">{option && <EChart option={option} height={720} />}</div>
           <div className="grid">
             {data.mw_below?.length > 0 && (
-              <div className="err">MW di bawah batas bawah max(PP,SFG) pada {data.mw_below.length} interval: {data.mw_below.map((r: any) => `${ft(r.a)}–${ft(r.b)} ft (${n(r.low_margin)} ppg)`).join(", ")}. Rekomendasi verifikasi dengan Mud Eng / Geomechanics.</div>
+              <div className="err">{t("MW di bawah batas bawah max(PP,SFG) pada")}{" "}{data.mw_below.length}{" "}{t("interval:")}{" "}{data.mw_below.map((r: any) => t("{p0}–{p1} ft ({p2} ppg)", { p0: ft(r.a), p1: ft(r.b), p2: n(r.low_margin) })).join(", ")}{t(". Rekomendasi verifikasi dengan Mud Eng / Geomechanics.")}</div>
             )}
             <div className="card">
-              <h3>Tabel interval (500 ft)</h3>
+              <h3>{t("Tabel interval (500 ft)")}</h3>
               <table>
-                <thead><tr><th>Interval MD (ft)</th><th>PP</th><th>SFG</th><th>MW</th><th>ECD terukur (med)</th><th>FG_min</th><th>Margin bawah statis</th><th>Margin atas</th><th>Status</th></tr></thead>
+                <thead><tr><th>{t("Interval MD (ft)")}</th><th>{t("PP")}</th><th>{t("SFG")}</th><th>{t("MW")}</th><th>{t("ECD terukur (med)")}</th><th>{t("FG_min")}</th><th>{t("Margin bawah statis")}</th><th>{t("Margin atas")}</th><th>{t("Status")}</th></tr></thead>
                 <tbody>
-                  {data.intervals.length === 0 && <tr><td colSpan={9} className="muted">Butuh Rec 03 (PPFG) dan Rec 04 (MW).</td></tr>}
+                  {data.intervals.length === 0 && <tr><td colSpan={9} className="muted">{t("Butuh Rec 03 (PPFG) dan Rec 04 (MW).")}</td></tr>}
                   {data.intervals.map((r: any, i: number) => (
                     <tr key={i}><td className="mono">{ft(r.a)}–{ft(r.b)}</td><td className="mono">{n(r.pp)}</td><td className="mono">{n(r.sfg)}</td><td className="mono">{n(r.mw)}</td>
                       <td className="mono">{n(r.ecd)}</td><td className="mono">{n(r.fg_min)}</td>
@@ -55,7 +56,7 @@ export default function ProfilDepth() {
                   ))}
                 </tbody>
               </table>
-              <p className="note">Margin bawah statis = MW − max(PP,SFG). Margin atas = FG_min − ECD terukur (median interval). Semua nilai ppg EMW pada TVD datum PPFG.</p>
+              <p className="note">{t("Margin bawah statis = MW − max(PP,SFG). Margin atas = FG_min − ECD terukur (median interval). Semua nilai ppg EMW pada TVD datum PPFG.")}</p>
             </div>
           </div>
         </div>
