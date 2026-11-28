@@ -83,6 +83,7 @@ def compute(db: Session, well: Well, t0: datetime | None = None, t1: datetime | 
     df = add_margins(df, ppfg, well.shoe_md)
     det = detectors.run(df, detector_params(db))
     df["risk"] = det["score"]
+    df = df.join(det["packoff_potential"]) if "packoff_potential" in det else df
     df = classify(df, thresholds(db), det["detections"])
     full = df[df.index >= t0]
     if full.empty:   # jendela tampilan tanpa data (data terputus), riwayat sebelumnya ada -> tetap kosong, jangan error

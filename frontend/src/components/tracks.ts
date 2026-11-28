@@ -16,6 +16,8 @@ export const CHANNELS: Record<string, Ch> = {
   bit_depth: { key: "bit_depth", name: "Bit Depth", unit: "ft", color: C.depth },
   ecd: { key: "ecd", name: "ECD terukur", unit: "ppg", color: C.ecd },
   ecd_pred: { key: "ecd_pred", name: "ECD ⓥ", unit: "ppg", color: C.ecd, dash: true, band: ["ecd_lo", "ecd_hi"] },
+  ecd_po: { key: "ecd_po", name: "ECD di bawah sensor (pack-off, estimasi)", unit: "ppg", color: "#B42318", band: ["ecd_pred", "ecd_po_hi"] },
+  ecd_po_hi: { key: "ecd_po_hi", name: "ECD pack-off batas atas (sumbatan total)", unit: "ppg", color: "#B42318", dash: true },
   fg_bit: { key: "fg_bit", name: "FG bit", unit: "ppg", color: C.fg },
   lower_bit: { key: "lower_bit", name: "max(PP,SFG)", unit: "ppg", color: C.sfg, dash: true },
   mw: { key: "mw", name: "MW", unit: "ppg", color: C.mw },
@@ -26,10 +28,10 @@ export const CHANNELS: Record<string, Ch> = {
 };
 
 export const PRESETS: Record<string, string[][]> = {
-  "Navita default": [["hookload", "torque"], ["flow_in", "spp"], ["ecd", "ecd_pred", "fg_bit", "lower_bit", "mw"], ["flow_out_pct", "active_pit"]],
-  Hidraulik: [["flow_in", "spp"], ["ecd", "ecd_pred", "fg_bit", "lower_bit", "mw"], ["rpm", "rop"]],
+  "Navita default": [["hookload", "torque"], ["flow_in", "spp"], ["ecd", "ecd_pred", "ecd_po", "fg_bit", "lower_bit", "mw"], ["flow_out_pct", "active_pit"]],
+  Hidraulik: [["flow_in", "spp"], ["ecd", "ecd_pred", "ecd_po", "fg_bit", "lower_bit", "mw"], ["rpm", "rop"]],
   Mekanik: [["hookload", "wob"], ["torque", "rpm"], ["bit_depth", "block_pos"], ["ecd", "ecd_pred", "mw"]],
-  "Loss/Influx": [["flow_in", "flow_out_pct"], ["active_pit", "gain_loss"], ["ecd", "ecd_pred", "fg_bit", "lower_bit", "mw"]],
+  "Loss/Influx": [["flow_in", "flow_out_pct"], ["active_pit", "gain_loss"], ["ecd", "ecd_pred", "ecd_po", "fg_bit", "lower_bit", "mw"]],
 };
 
 type Opt = { vertical?: boolean; hidden?: Record<string, boolean>; marks?: { t0: string; t1?: string; label: string; level: string }[];

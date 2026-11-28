@@ -29,6 +29,9 @@ DEFAULTS = {
     "ecd_below_mw_ppg": 0.1,     # ECD terukur < MW − x saat pompa hidup = kolom lumpur turun (korroborasi loss)
     "stationary_min": 30,
     "min_duration_min": 1.0,
+    # fraksi ΔSPP yang diteruskan ke annulus di bawah sensor saat pack-off. Sementara: GW339 17–24 Nov (DDR: tanpa
+    # loss) konsisten dengan ≤ 0,2 (α 0,2 → 1 dari 1.344 titik > FG draft; α 1 → 302). Kalibrasi ulang dgn event lain.
+    "po_transmission": 0.2,
 }
 
 RECS = {
@@ -211,6 +214,47 @@ def loss_note(df: pd.DataFrame, a, b) -> dict:
     return {"no_pwd": False, **extra}
 
 
+def packoff_potential(df: pd.DataFrame, fl: dict, alpha: float = DEFAULTS["po_transmission"]) -> pd.DataFrame:
+    """ECD potensial di bawah sensor saat pack-off (sumbatan di bit/stabilizer).
+
+    Sensor PWD ±40–45 ft di belakang bit (klien 28 Nov): sumbatan di bit/stabilizer tidak terbaca ECD terukur, tetapi
+    SPP melihatnya. ΔSPP = kelebihan SPP terhadap baseline pada flow yang sama (detektor pack-off).
+      ecd_po    = ECD acuan + α · ΔSPP / (0,052 · TVD bit)   estimasi (α = po_transmission)
+      ecd_po_hi = ECD acuan + ΔSPP / (0,052 · TVD bit)       batas atas, skenario sumbatan total
+    Hanya saat detektor pack-off aktif. Sebagian ΔSPP bisa dari motor/bit (uji 13 sumur: ECD terukur tidak ikut naik)."""
+    out = pd.DataFrame(index=df.index, columns=["spp_excess", "ecd_po", "ecd_po_hi"], dtype=float)
+    if "packoff" not in fl:
+        return out
+    m, _, rise, _ = fl["packoff"]
+    spp, tvd = _col(df, "spp"), _col(df, "tvd_bit")
+    ref = _col(df, "ecd").fillna(_col(df, "ecd_pred"))
+    ex = (spp * rise / (100 + rise)).where(m.fillna(False).astype(bool) & (rise > 0))
+    d = ex / (0.052 * tvd.where(tvd > 100))
+    out["spp_excess"] = ex
+    out["ecd_po"] = ref + alpha * d
+    out["ecd_po_hi"] = ref + d
+    return out
+
+
+def _po_note(df: pd.DataFrame, seg: slice, alpha: float) -> dict:
+    if "ecd_po" not in df:
+        return {}
+    po = df["ecd_po"].loc[seg]
+    if po.notna().sum() == 0:
+        return {}
+    i = po.idxmax()
+    fg = df["fg_bit"].loc[i] if "fg_bit" in df else np.nan
+    o = {"ecd_po_max": round(float(po.loc[i]), 2), "ecd_po_hi_max": round(float(df["ecd_po_hi"].loc[i]), 2),
+         "spp_excess_max": round(float(df["spp_excess"].loc[i]), 0)}
+    txt = (f"ECD di bawah sensor ±{o['ecd_po_max']:.2f} ppg ({alpha:.0%} dari ΔSPP {o['spp_excess_max']:.0f} psi; "
+           f"batas atas sumbatan total {o['ecd_po_hi_max']:.2f})")
+    if pd.notna(fg):
+        o["fg_bit"] = round(float(fg), 2)
+        txt += f"; FG bit {fg:.2f}" + (" → MELEBIHI FG" if po.loc[i] > fg else "")
+    o["po_note"] = txt
+    return o
+
+
 def episodes(df: pd.DataFrame, fl: dict, p: dict) -> list[dict]:
     out = []
     gap = pd.Timedelta(minutes=2)
@@ -247,6 +291,7 @@ def episodes(df: pd.DataFrame, fl: dict, p: dict) -> list[dict]:
                 "state": None if pd.isna(st.loc[a]) else str(st.loc[a]),
                 "rec": RECS[key],
                 **(loss_note(df, a, b) if key == "loss" else {}),
+                **(_po_note(df, seg, p["po_transmission"]) if key == "packoff" else {}),
             })
     out.sort(key=lambda d: d["start"])
     return out
@@ -268,4 +313,6 @@ def run(df: pd.DataFrame, params: dict | None = None) -> dict:
     if df.empty:
         return {"detections": [], "score": pd.Series(dtype=float)}
     fl = flags(df, p)
-    return {"detections": episodes(df, fl, p), "score": risk_score(df, fl), "flags": fl}
+    po = packoff_potential(df, fl, p["po_transmission"])
+    df = df.assign(spp_excess=po["spp_excess"], ecd_po=po["ecd_po"], ecd_po_hi=po["ecd_po_hi"])
+    return {"detections": episodes(df, fl, p), "score": risk_score(df, fl), "flags": fl, "packoff_potential": po}

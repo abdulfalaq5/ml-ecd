@@ -156,6 +156,11 @@ def analyze(db: Session, well: Well) -> dict:
     ver, _ = active_ppfg(db, well.id)
     if not ver:
         cv.append("PPFG sumur ini belum di-approve → margin terhadap FG / batas bawah belum dihitung.")
+    from ..config import get_settings as _gs
+    _st = _gs()
+    cv.append(f"ECD terukur dibaca sensor PWD ±{_st.pwd_offset_ft:.0f}–{_st.pwd_offset_max_ft:.0f} ft di belakang bit: "
+              "bagian terbawah lubang (rathole / clean-out) dan sumbatan di bit/stabilizer tidak terbaca PWD; "
+              "SPP tetap melihatnya (pita ECD potensial pack-off).")
     from .data import load_mw_changes
     nch = len(load_mw_changes(db, well.id))
     cv.append(f"MW dari Rec 04 per kedalaman + {nch} perubahan MW berbasis waktu (DDR); cocokkan dengan laporan harian."

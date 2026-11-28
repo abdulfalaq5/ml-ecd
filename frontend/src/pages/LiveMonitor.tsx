@@ -35,7 +35,7 @@ export default function LiveMonitor() {
   const marks = (data?.detections || []).map((d: any) => ({ t0: d.start, t1: d.end, label: d.label, level: d.level }));
   const option = useMemo(() => data?.series ? buildTracks(data.series, tracks, { vertical: view === "v", hidden, marks, ppgRange }) : null, [data, tracks, view, hidden, ppgRange]);
   const allKeys = Array.from(new Set(PRESETS[preset].flat()));
-  const ecdLabel = sn?.ecd_kind === "m" ? "ECD terukur (PWD)" : "ECD ⓥ prediksi (tanpa PWD)";
+  const ecdLabel = sn?.ecd_kind === "m" ? `ECD terukur (PWD @ bit − ${sn?.pwd_offset_ft ?? 40} ft)` : "ECD ⓥ prediksi (tanpa PWD)";
 
   return (
     <>
@@ -112,6 +112,7 @@ export default function LiveMonitor() {
                     <div className="row"><Level v={d.level} /><ZoneTag z={d.zone} /><span className="small mono">{wib(d.start)}</span><span className="sp" /><button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => setAck({ ...ack, [k]: true })}>Ack</button></div>
                     <div className="small" style={{ marginTop: 4 }}>{d.label}{d.md ? ` @${ft(d.md)} ft` : ""}</div>
                     {d.rec && <div className="muted small">Rekomendasi verifikasi: {d.rec}</div>}
+                    {d.po_note && <div className="small" style={{ color: /MELEBIHI/.test(d.po_note) ? "#B42318" : "#9A6700" }}>⚑ {d.po_note}</div>}
                     {d.note && <div className="small" style={{ color: "#9A6700", marginTop: 2 }}>⚠ {d.note}</div>}
                   </div>
                 );

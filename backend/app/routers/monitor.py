@@ -22,7 +22,8 @@ router = APIRouter(prefix="/api/wells", tags=["monitor"])
 
 TRACK_COLS = ["bit_depth", "hole_depth", "block_pos", "rop", "hookload", "wob", "torque", "rpm", "spp", "flow_in",
               "flow_out_pct", "active_pit", "gain_loss", "ecd", "ecd_pred", "ecd_lo", "ecd_hi", "mw", "fg_bit",
-              "lower_bit", "fg_oh", "margin_up_bit", "margin_up_oh", "margin_low", "margin_static", "risk"]
+              "lower_bit", "fg_oh", "margin_up_bit", "margin_up_oh", "margin_low", "margin_static", "risk",
+              "ecd_po", "ecd_po_hi", "spp_excess", "sensor_md"]
 
 
 def _well(db: Session, wid: int) -> Well:
@@ -72,6 +73,8 @@ def monitor(wid: int, t0: str | None = None, t1: str | None = None, minutes: int
         "ecd": f(last.get("ecd_ref")), "ecd_kind": kind, "ecd_lo": f(last.get("ecd_lo")), "ecd_hi": f(last.get("ecd_hi")),
         "ecd_measured": f(last.get("ecd")), "ecd_pred": f(last.get("ecd_pred")), "ecd_model": f(last.get("ecd_model")),
         "cal_offset": f(last.get("cal_offset")), "cal_age_h": f(last.get("cal_age_h"), 1),
+        "sensor_md": f(last.get("sensor_md"), 0), "pwd_offset_ft": f(last.get("pwd_offset_ft"), 0),
+        "ecd_po": f(last.get("ecd_po")), "ecd_po_hi": f(last.get("ecd_po_hi")), "spp_excess": f(last.get("spp_excess"), 0),
         "fg_bit": f(last.get("fg_bit")), "fg_oh": oh["fg_min"], "fg_oh_md": oh["fg_min_md"],
         "lower_bit": f(last.get("lower_bit")), "lower_oh": oh["lower_max"], "mw": f(last.get("mw")),
         "margin_up_bit": f(last.get("fg_bit") - last.get("ecd_ref")) if pd.notna(last.get("fg_bit")) and pd.notna(last.get("ecd_ref")) else None,

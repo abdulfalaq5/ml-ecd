@@ -170,6 +170,10 @@ def add_features(df: pd.DataFrame, mw: pd.DataFrame, survey: pd.DataFrame, secti
     out["mw"] = apply_mw_changes(mw_d, mw.attrs.get("changes"), hole_reached, mw, MW_LAG_FT)
     from .sections import hole_size_series
     out["hole_size"] = hole_size_series(sections, hole_reached)
+    from .sections import section_value_series
+    # sensor PWD di belakang bit: ECD terukur = bacaan di (bit − offset); zona di bawahnya blind spot PWD
+    out["pwd_offset_ft"] = section_value_series(sections, hole_reached, "pwd_offset_ft", get_settings().pwd_offset_ft)
+    out["sensor_md"] = (out.get("bit_depth") - out["pwd_offset_ft"]).clip(lower=0)
     if len(survey) and survey["tvd"].notna().sum() >= 2:
         out["tvd_bit"] = interp(out["bit_depth"], survey["md"], survey["tvd"])
         out["inc_bit"] = interp(out["bit_depth"], survey["md"], survey["inc"]) if survey["inc"].notna().any() else np.nan

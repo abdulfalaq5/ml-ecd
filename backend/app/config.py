@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     on_bottom_ft: float = 1.0
     block_move_ft_s: float = 0.05
     resample_s: int = 30
+    # offset sensor PWD/ECD di belakang bit (motor ±30 ft + MWD). Default klien 28 Nov: 40 ft, pita 40–45 ft;
+    # per run bisa diisi dari tally di tabel section (pwd_offset_ft). Tidak ada kanal Navita untuk ini.
+    pwd_offset_ft: float = 40.0
+    pwd_offset_max_ft: float = 45.0
 
     # AI narasi (opsional, hanya ringkasan hasil yang dikirim)
     anthropic_api_key: str = ""

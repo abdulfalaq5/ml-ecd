@@ -150,8 +150,8 @@ export default function DataUpload() {
   );
 }
 
-type Sec = { from_md: string; hole_size: string; shoe_md: string; casing_id: string; preset: string; pv: string; yp: string; since: string; note: string };
-const SEC_KEYS: (keyof Sec)[] = ["from_md", "hole_size", "shoe_md", "casing_id", "preset", "pv", "yp", "since", "note"];
+type Sec = { from_md: string; hole_size: string; shoe_md: string; casing_id: string; preset: string; pv: string; yp: string; pwd_offset_ft: string; since: string; note: string };
+const SEC_KEYS: (keyof Sec)[] = ["from_md", "hole_size", "shoe_md", "casing_id", "preset", "pv", "yp", "pwd_offset_ft", "since", "note"];
 const TEXT_KEYS: (keyof Sec)[] = ["preset", "note", "since"];
 const toSec = (r: any): Sec => Object.fromEntries(SEC_KEYS.map((k) => [k, r[k] == null ? "" : k === "since" ? toLocalInput(r[k]) : String(r[k])])) as Sec;
 const HOLES = ["26", "17.5", "12.25", "8.5", "6.125"];
@@ -186,7 +186,7 @@ function SectionsCard({ wellId, canEdit, onSaved }: { wellId: number; canEdit: b
       {cur.length === 0 && !editing ? <div className="small muted" style={{ marginTop: 6 }}>Belum ada data section. Tanpa ini, Ramalan ECD memakai ukuran lubang 8-1/2" dan respons flow sementara.</div> : (
         <div style={{ overflowX: "auto", marginTop: 6 }}>
           <table className="plan">
-            <thead><tr><th>Mulai hole depth (ft)</th><th>Lubang (in)</th><th>Shoe casing MD (ft)</th><th>ID casing (in)</th><th>String (katalog)</th><th>PV (cP)</th><th>YP (lbf/100ft²)</th><th title="Opsional: bila casing di-set lebih dangkal dari TD section sebelumnya (rathole), baris berlaku sejak waktu ini, bukan dari kedalaman">Berlaku sejak (WIB, opsional)</th><th>Sumber / catatan</th>{editing && <th />}</tr></thead>
+            <thead><tr><th>Mulai hole depth (ft)</th><th>Lubang (in)</th><th>Shoe casing MD (ft)</th><th>ID casing (in)</th><th>String (katalog)</th><th>PV (cP)</th><th>YP (lbf/100ft²)</th><th title="Jarak sensor PWD/ECD di belakang bit (dari tally BHA: motor + MWD). Kosong = default 40 ft (pita 40–45 ft)">Offset sensor PWD (ft)</th><th title="Opsional: bila casing di-set lebih dangkal dari TD section sebelumnya (rathole), baris berlaku sejak waktu ini, bukan dari kedalaman">Berlaku sejak (WIB, opsional)</th><th>Sumber / catatan</th>{editing && <th />}</tr></thead>
             <tbody>
               {cur.map((r, i) => editing ? (
                 <tr key={i}>
@@ -197,6 +197,7 @@ function SectionsCard({ wellId, canEdit, onSaved }: { wellId: number; canEdit: b
                   <td><select value={r.preset} onChange={(e) => set(i, "preset", e.target.value)}><option value="">otomatis per ukuran lubang</option>{presets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
                   <td><input type="number" step="any" value={r.pv} onChange={(e) => set(i, "pv", e.target.value)} style={{ width: 60 }} /></td>
                   <td><input type="number" step="any" value={r.yp} onChange={(e) => set(i, "yp", e.target.value)} style={{ width: 60 }} /></td>
+                  <td><input type="number" step="any" value={r.pwd_offset_ft} placeholder="40" onChange={(e) => set(i, "pwd_offset_ft", e.target.value)} style={{ width: 70 }} /></td>
                   <td><input type="datetime-local" value={r.since} onChange={(e) => set(i, "since", e.target.value)} /></td>
                   <td><input value={r.note} onChange={(e) => set(i, "note", e.target.value)} placeholder="mis. DDR / mud report" /></td>
                   <td><button className="danger" onClick={() => setRows(cur.filter((_, j) => j !== i))}>×</button></td>
@@ -205,7 +206,7 @@ function SectionsCard({ wellId, canEdit, onSaved }: { wellId: number; canEdit: b
                 <tr key={i}>
                   <td className="mono">{ft(Number(r.from_md))}</td><td>{r.hole_size}"</td><td className="mono">{r.shoe_md ? ft(Number(r.shoe_md)) : "—"}</td>
                   <td>{r.casing_id || <span className="muted">otomatis</span>}</td><td>{presets.find((p) => p.id === r.preset)?.name || <span className="muted">otomatis</span>}</td>
-                  <td>{r.pv || "—"}</td><td>{r.yp || "—"}</td><td className="small">{r.since ? r.since.replace("T", " ") : <span className="muted">dari kedalaman</span>}</td><td className="muted small">{r.note}</td>
+                  <td>{r.pv || "—"}</td><td>{r.yp || "—"}</td><td>{r.pwd_offset_ft || <span className="muted">40</span>}</td><td className="small">{r.since ? r.since.replace("T", " ") : <span className="muted">dari kedalaman</span>}</td><td className="muted small">{r.note}</td>
                 </tr>
               ))}
             </tbody>

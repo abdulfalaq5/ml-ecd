@@ -17,7 +17,7 @@ import pandas as pd
 from . import bending as bd
 from . import hydraulics as hy
 
-FIELDS = ("from_md", "hole_size", "shoe_md", "casing_id", "preset", "pv", "yp", "since", "note")
+FIELDS = ("from_md", "hole_size", "shoe_md", "casing_id", "preset", "pv", "yp", "pwd_offset_ft", "since", "note")
 
 
 def _num(v, name: str, lo: float, hi: float, i: int, required: bool = False) -> float | None:
@@ -67,6 +67,7 @@ def clean_sections(rows: list[dict] | None) -> list[dict]:
             "casing_id": _num(r.get("casing_id"), "ID casing", 3, 30, i),
             "pv": _num(r.get("pv"), "PV", 1, 150, i),
             "yp": _num(r.get("yp"), "YP", 1, 150, i),
+            "pwd_offset_ft": _num(r.get("pwd_offset_ft"), "offset sensor PWD", 0, 300, i),
             "preset": (r.get("preset") or None),
             "since": _since(r.get("since"), i),
             "note": str(r.get("note") or "")[:200],
@@ -107,6 +108,18 @@ def hole_size_series(sections: list[dict] | None, hole_reached: pd.Series) -> pd
             m &= hole_reached.index >= pd.Timestamp(s["since"])
         out[m] = s["hole_size"]
     return out
+
+
+def section_value_series(sections: list[dict] | None, hole_reached: pd.Series, key: str,
+                         default: float = np.nan) -> pd.Series:
+    """Nilai kolom section per baris data (aturan sama dengan hole_size_series); kosong -> default."""
+    out = pd.Series(np.nan, index=hole_reached.index)
+    for s in sorted(sections or [], key=lambda s: s["from_md"]):
+        m = (hole_reached >= s["from_md"]).to_numpy()
+        if s.get("since"):
+            m &= hole_reached.index >= pd.Timestamp(s["since"])
+        out[m] = np.nan if s.get(key) is None else s[key]
+    return out.fillna(default)
 
 
 def presets_for_ui() -> list[dict]:
