@@ -49,3 +49,32 @@ def test_reset_hole_depth_does_not_cancel_ddr_change():
     assert apply_mw_changes(s, ch, hole).tolist() == [10.3, 9.0, 9.0, 9.0, 9.0, 9.0]
     # tanpa hole_reached perilaku lama (perubahan nilai apa pun menang)
     assert apply_mw_changes(s, ch).tolist() == [10.3, 9.0, 10.2, 10.3, 10.3, 10.3]
+
+
+def test_hole_md_rule_independent_of_window_start():
+    # BEKA-254: Rec 04 10,2 s/d 3.723, 8,7 @3.724, 8,8 @3.970. RDIF 8,7 jam 0 di hole 3.723.
+    table = pd.DataFrame({"md": [0.0, 3724.0, 3970.0], "mw": [10.2, 8.7, 8.8]})
+    ch = pd.DataFrame({"ts": [pd.Timestamp("2026-08-06 14:00", tz="Asia/Jakarta")], "mw": [8.7], "hole_md": [3723.0]})
+    from app.core.data import asof_step
+    # jendela yang mulai lama sesudah perubahan (monitor 12 j): sudah di 4.000 ft -> MW per kedalaman 8,8
+    idx = _idx(3, "2026-08-08 12:00")
+    hole = pd.Series([4000.0, 4010.0, 4020.0], index=idx)
+    s = pd.Series(asof_step(hole - 10, table.md, table.mw), index=idx)
+    assert apply_mw_changes(s, ch, hole, table, 10).tolist() == [8.8, 8.8, 8.8]
+    # jendela di shoe sesudah displacement: hole 3.723 -> RDIF 8,7 menimpa 10,2
+    idx = _idx(3, "2026-08-06 16:00")
+    hole = pd.Series([3723.0, 3723.0, 3740.0], index=idx)
+    s = pd.Series(asof_step(hole - 10, table.md, table.mw), index=idx)
+    assert apply_mw_changes(s, ch, hole, table, 10).tolist() == [8.7, 8.7, 8.7]
+
+
+def test_hole_md_rule_gw339_window_inside_cleanout():
+    # GW339: Rec 04 10,3 sampai 5.650,5 (tak ada titik lebih dalam dengan MW lain) -> 9,0 tetap berlaku di jendela
+    # 12 j yang dimulai 17 Nov (dulu: sampel pertama jendela dianggap 'perubahan per kedalaman' -> 10,3, salah)
+    table = pd.DataFrame({"md": [0.0, 5340.0, 5345.0, 5650.5], "mw": [8.7, 10.2, 10.3, 10.3]})
+    T = lambda x: pd.Timestamp(x, tz="Asia/Jakarta")
+    ch = pd.DataFrame({"ts": [T("2026-11-16 12:00")], "mw": [9.0], "hole_md": [5651.0]})
+    idx = _idx(4, "2026-11-17 08:00")
+    hole = pd.Series([5357.0, 5360.0, 5400.0, 5420.0], index=idx)
+    s = pd.Series(np.full(4, 10.3), index=idx)
+    assert apply_mw_changes(s, ch, hole, table, 10).tolist() == [9.0, 9.0, 9.0, 9.0]

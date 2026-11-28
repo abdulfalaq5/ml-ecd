@@ -79,9 +79,9 @@ def load_mw(db: Session, well_id: int) -> pd.DataFrame:
 
 
 def load_mw_changes(db: Session, well_id: int) -> pd.DataFrame:
-    rows = db.execute(select(MudWeightChange.ts, MudWeightChange.mw, MudWeightChange.remark)
+    rows = db.execute(select(MudWeightChange.ts, MudWeightChange.mw, MudWeightChange.hole_md, MudWeightChange.remark)
                       .where(MudWeightChange.well_id == well_id).order_by(MudWeightChange.ts)).all()
-    df = pd.DataFrame(rows, columns=["ts", "mw", "remark"])
+    df = pd.DataFrame(rows, columns=["ts", "mw", "hole_md", "remark"])
     df["ts"] = pd.to_datetime(df["ts"], utc=True)
     return df
 
@@ -135,40 +135,59 @@ def asof_step(x: np.ndarray | pd.Series, xp: pd.Series, fp: pd.Series) -> np.nda
     return out
 
 
-def apply_mw_changes(mw_depth: pd.Series, changes: pd.DataFrame | None,
-                     hole_reached: pd.Series | None = None) -> pd.Series:
-    """Gabungkan MW per kedalaman dengan perubahan MW berbasis waktu.
+def apply_mw_changes(mw_depth: pd.Series, changes: pd.DataFrame | None, hole_reached: pd.Series | None = None,
+                     table: pd.DataFrame | None = None, lag: float = 0.0) -> pd.Series:
+    """Gabungkan MW per kedalaman dengan perubahan MW berbasis waktu (yang terbaru dengan ts <= t berlaku).
 
-    Perubahan berwaktu berlaku sejak `ts` sampai NILAI MW per kedalaman berubah sesudahnya (bit menembus titik Rec 04
-    berikutnya dengan MW berbeda); yang terbaru menang. Tanpa perubahan -> mw_depth apa adanya.
+    Aturan utama (perubahan punya `hole_md` = hole depth saat perubahan, diisi saat disimpan): MW berwaktu berlaku
+    sampai lubang menembus titik Rec 04 berikutnya yang MW-nya BERBEDA dari MW per kedalaman di `hole_md`
+    (hole_reached − lag ≥ titik itu). Tidak bergantung panjang jendela data (monitor 12 j vs analisis seluruh sumur).
+    Contoh: BEKA-254 6 Agu RDIF 8,7 @3.723 ft → lepas di 3.724 ft (Rec 04 8,7, 8,8, …); GW339 9,0–10,0 @5.651 ft →
+    Rec 04 tidak punya titik lebih dalam dengan MW lain → tetap.
 
-    Dengan `hole_reached`: perubahan nilai per kedalaman hanya dihitung saat lubang BARU terbentuk (di atas puncak
-    sebelumnya). Bit yang melintasi ulang interval lama sesudah reset hole depth (GW339 16 Nov: reset ke shoe 5.357 ft,
-    Rec 04 10,2/10,3) tidak membatalkan lumpur baru dari DDR."""
+    Cadangan (perubahan tanpa hole_md, mis. tidak ada data di jam itu): berlaku sampai NILAI MW per kedalaman berubah
+    sesudah ts, hanya dihitung saat lubang baru (di atas puncak sebelumnya)."""
     if changes is None or not len(changes) or not isinstance(mw_depth.index, pd.DatetimeIndex) or not len(mw_depth):
         return mw_depth
-    ch = changes.dropna(subset=["ts", "mw"]).sort_values("ts")
+    ch = changes.dropna(subset=["ts", "mw"]).sort_values("ts").reset_index(drop=True)
     if not len(ch):
         return mw_depth
     idx = mw_depth.index
     tz_idx = idx if idx.tz is not None else idx.tz_localize("UTC")
-    t = pd.Series(tz_idx.asi8, index=idx)
-    # waktu terakhir nilai MW per kedalaman berubah (perubahan nilai, bukan sekadar baris Rec 04 berikutnya)
+    t = tz_idx.asi8.astype(float)
     v = mw_depth.to_numpy(float)
+    h = hole_reached.reindex(idx).to_numpy(float) if hole_reached is not None else np.full(len(v), np.nan)
+    cts = pd.DatetimeIndex(ch["ts"]).tz_convert("UTC").asi8.astype(float)
+    k = np.searchsorted(cts, t, side="right") - 1
+    has = k >= 0
+    kk = np.clip(k, 0, None)
+
+    # cadangan: perubahan nilai MW per kedalaman sesudah ts (di lubang baru) membatalkan
     prev = np.r_[np.nan, v[:-1]]
     changed = ~((v == prev) | (np.isnan(v) & np.isnan(prev)))
     if hole_reached is not None:
-        h = hole_reached.reindex(idx).to_numpy(float)
         peak = np.fmax.accumulate(np.where(np.isnan(h), -np.inf, h))
-        new = np.r_[True, h[1:] > peak[:-1]]
-        changed &= new
+        changed &= np.r_[True, h[1:] > peak[:-1]]
     changed[0] = True
-    t_dep = pd.Series(np.where(changed, t.to_numpy(), np.nan), index=idx).ffill().to_numpy()
-    cts = pd.DatetimeIndex(ch["ts"]).tz_convert("UTC").asi8.astype(float)
-    k = np.searchsorted(cts, t.to_numpy(float), side="right") - 1
-    has = k >= 0
-    t_chg = np.where(has, cts[np.clip(k, 0, None)], -np.inf)
-    use = has & (t_chg >= t_dep)
+    t_dep = pd.Series(np.where(changed, t, np.nan)).ffill().to_numpy()
+    use = has & (np.where(has, cts[kk], -np.inf) >= t_dep)
+
+    # utama: titik lepas per perubahan dari hole_md
+    if "hole_md" in ch and table is not None and len(table) and hole_reached is not None:
+        tb = table.dropna(subset=["md", "mw"]).sort_values("md")
+        md_t, mw_t = tb["md"].to_numpy(float), tb["mw"].to_numpy(float)
+        rel = np.full(len(ch), np.nan)
+        for j, hm in enumerate(ch["hole_md"].to_numpy(float)):
+            if np.isnan(hm):
+                continue
+            x = hm - lag
+            v0 = asof_step(np.array([x]), tb["md"], tb["mw"])[0]
+            nxt = md_t[(md_t > x) & (mw_t != v0)]
+            rel[j] = nxt.min() if len(nxt) else np.inf
+        known = has & ~np.isnan(rel[kk])
+        hold = ~((h - lag) >= rel[kk])            # NaN hole -> tetap berlaku
+        use = np.where(known, has & hold, use)
+
     out = v.copy()
-    out[use] = ch["mw"].to_numpy(float)[k[use]]
+    out[use] = ch["mw"].to_numpy(float)[kk[use]]
     return pd.Series(out, index=idx)

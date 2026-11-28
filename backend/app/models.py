@@ -145,6 +145,7 @@ class MudWeightChange(Base):
     well_id: Mapped[int] = mapped_column(ForeignKey("wells.id", ondelete="CASCADE"), index=True)
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     mw: Mapped[float] = mapped_column(Float)
+    hole_md: Mapped[float | None] = mapped_column(Float, nullable=True)   # hole depth saat ts (diisi dari data)
     remark: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
 

@@ -159,7 +159,7 @@ class MWChangeIn(BaseModel):
 
 def _changes_out(db: Session, wid: int) -> list[dict]:
     rows = db.scalars(select(MudWeightChange).where(MudWeightChange.well_id == wid).order_by(MudWeightChange.ts)).all()
-    return [{"ts": r.ts.isoformat(), "mw": r.mw, "remark": r.remark} for r in rows]
+    return [{"ts": r.ts.isoformat(), "mw": r.mw, "hole_md": r.hole_md, "remark": r.remark} for r in rows]
 
 
 def _mw_out(db: Session, wid: int) -> dict:
@@ -206,6 +206,19 @@ def put_mw(wid: int, body: MWIn, db: Session = Depends(get_db), u: User = Depend
     return _mw_out(db, wid)
 
 
+def _hole_at(db: Session, wid: int, ts: datetime) -> float | None:
+    """Hole depth tercapai saat ts, tahan glitch (hole_reached_robust atas 72 j sebelumnya; GW339 16 Nov mentah
+    9.909 ft padahal TD 5.651). None bila tidak ada data."""
+    from datetime import timedelta
+    from ..core.data import load_time
+    from ..core.features import hole_reached_robust
+    df = load_time(db, wid, ts - timedelta(hours=72), ts, bucket_s=60, channels=["hole_depth", "bit_depth", "flow_in"])
+    if df.empty or df["hole_depth"].notna().sum() == 0:
+        return None
+    h = hole_reached_robust(df["hole_depth"], bit=df["bit_depth"], flow=df["flow_in"]).dropna()
+    return float(h.iloc[-1]) if len(h) else None
+
+
 @router.put("/wells/{wid}/mud-weight/changes")
 def put_mw_changes(wid: int, body: MWChangeIn, db: Session = Depends(get_db), u: User = Depends(require("mw_edit"))):
     """Perubahan MW berbasis waktu (jam dari DDR / mud report). MW berlaku sejak `ts` sampai MW per kedalaman
@@ -221,7 +234,8 @@ def put_mw_changes(wid: int, body: MWChangeIn, db: Session = Depends(get_db), u:
         if ts in seen:
             raise HTTPException(400, f"Waktu {ts.isoformat()} diisi dua kali")
         seen.add(ts)
-        rows.append({"well_id": wid, "ts": ts, "mw": float(r.mw), "remark": (r.remark or "").strip()[:256] or None})
+        rows.append({"well_id": wid, "ts": ts, "mw": float(r.mw), "hole_md": _hole_at(db, wid, ts),
+                     "remark": (r.remark or "").strip()[:256] or None})
     db.execute(MudWeightChange.__table__.delete().where(MudWeightChange.well_id == wid))
     if rows:
         db.bulk_insert_mappings(MudWeightChange, rows)
