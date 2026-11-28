@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from ..config import get_settings
-from .data import asof_step, interp
+from .data import apply_mw_changes, asof_step, interp
 
 STATES = {
     "DRILL_ROT": "Drilling rotary", "SLIDE": "Sliding", "REAM": "Reaming / back-reaming", "WASH": "Washing",
@@ -162,7 +162,10 @@ def add_features(df: pd.DataFrame, mw: pd.DataFrame, survey: pd.DataFrame, secti
     hole_reached = hole_reached_robust(out.get("hole_depth", out.get("bit_depth")), bit=out.get("bit_depth"),
                                        flow=out.get("flow_in"))
     out["hole_reached"] = hole_reached          # hole depth tercapai, tahan glitch (dipakai juga oleh ramalan)
-    out["mw"] = asof_step(hole_reached - MW_LAG_FT, mw["md"], mw["mw"]) if len(mw) else np.nan
+    mw_d = pd.Series(asof_step(hole_reached - MW_LAG_FT, mw["md"], mw["mw"]) if len(mw) else np.nan,
+                     index=out.index, dtype=float)
+    # perubahan MW berbasis waktu (DDR) menimpa sampai MW per kedalaman berubah lagi (displacement di shoe, lumpur baru)
+    out["mw"] = apply_mw_changes(mw_d, mw.attrs.get("changes"), hole_reached)
     from .sections import hole_size_series
     out["hole_size"] = hole_size_series(sections, hole_reached)
     if len(survey) and survey["tvd"].notna().sum() >= 2:

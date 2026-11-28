@@ -136,6 +136,18 @@ class MudWeight(Base):
     file_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class MudWeightChange(Base):
+    """Perubahan MW berbasis WAKTU (DDR / mud report): MW baru berlaku sejak `ts`, menimpa MW per kedalaman sampai
+    nilai MW per kedalaman berubah lagi sesudahnya. Contoh: displacement ke RDIF di shoe (BEKA-254 6 Agu), lumpur baru
+    clean-out 6-1/8" (GW339 16–19 Nov). Terpisah dari mud_weight agar upload ulang Rec 04 tidak menghapusnya."""
+    __tablename__ = "mud_weight_change"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    well_id: Mapped[int] = mapped_column(ForeignKey("wells.id", ondelete="CASCADE"), index=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    mw: Mapped[float] = mapped_column(Float)
+    remark: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+
 class Survey(Base):
     __tablename__ = "survey"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

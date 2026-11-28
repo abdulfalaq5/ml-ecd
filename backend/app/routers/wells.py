@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -14,7 +15,7 @@ from ..core.analysis import compute, f
 from ..db import get_db
 from ..ingest.service import get_or_create_well, ingest_bytes
 from ..ingest.watcher import scan_once
-from ..models import IngestFile, MudWeight, PPFGVersion, Setting, Survey, User, Well
+from ..models import IngestFile, MudWeight, MudWeightChange, PPFGVersion, Setting, Survey, User, Well
 from ..core.data import time_range
 from ..security import audit, current_user, require
 
@@ -146,6 +147,21 @@ class MWIn(BaseModel):
     rows: list[MWRow]
 
 
+class MWChangeRow(BaseModel):
+    ts: datetime           # ISO; tanpa zona = WIB
+    mw: float
+    remark: str | None = None
+
+
+class MWChangeIn(BaseModel):
+    rows: list[MWChangeRow]
+
+
+def _changes_out(db: Session, wid: int) -> list[dict]:
+    rows = db.scalars(select(MudWeightChange).where(MudWeightChange.well_id == wid).order_by(MudWeightChange.ts)).all()
+    return [{"ts": r.ts.isoformat(), "mw": r.mw, "remark": r.remark} for r in rows]
+
+
 def _mw_out(db: Session, wid: int) -> dict:
     rows = db.scalars(select(MudWeight).where(MudWeight.well_id == wid).order_by(MudWeight.md)).all()
     fids = {r.file_id for r in rows if r.file_id}
@@ -156,6 +172,7 @@ def _mw_out(db: Session, wid: int) -> dict:
                               FROM ts_data WHERE well_id=:w AND mud_dens_in BETWEEN 6 AND 22 AND hole_depth > 0
                               GROUP BY 1 ORDER BY 1"""), {"w": wid}).all()
     return {"rows": [{"md": r.md, "mw": r.mw, "remark": r.remark} for r in rows], "source": src,
+            "changes": _changes_out(db, wid),
             "stream_density": [{"md_from": float(d), "mw": round(float(v), 2)} for d, v in dens]}
 
 
@@ -185,6 +202,31 @@ def put_mw(wid: int, body: MWIn, db: Session = Depends(get_db), u: User = Depend
     if rows:
         db.bulk_insert_mappings(MudWeight, rows)
     audit(db, u.username, "mud_weight_manual", f"{w.name}: " + "; ".join(f"{r['md']:g} ft {r['mw']:g} ppg" for r in rows))
+    db.commit()
+    return _mw_out(db, wid)
+
+
+@router.put("/wells/{wid}/mud-weight/changes")
+def put_mw_changes(wid: int, body: MWChangeIn, db: Session = Depends(get_db), u: User = Depends(require("mw_edit"))):
+    """Perubahan MW berbasis waktu (jam dari DDR / mud report). MW berlaku sejak `ts` sampai MW per kedalaman
+    berubah lagi. Mengganti seluruh daftar perubahan berwaktu sumur; tabel MW per kedalaman tidak disentuh."""
+    w = db.get(Well, wid) or _404()
+    wib = ZoneInfo("Asia/Jakarta")
+    seen: set = set()
+    rows = []
+    for r in sorted(body.rows, key=lambda r: r.ts if r.ts.tzinfo else r.ts.replace(tzinfo=wib)):
+        ts = r.ts if r.ts.tzinfo else r.ts.replace(tzinfo=wib)
+        if not 6 <= r.mw <= 22:
+            raise HTTPException(400, f"MW {r.mw:g} ppg di luar 6–22 ppg (isi dalam ppg)")
+        if ts in seen:
+            raise HTTPException(400, f"Waktu {ts.isoformat()} diisi dua kali")
+        seen.add(ts)
+        rows.append({"well_id": wid, "ts": ts, "mw": float(r.mw), "remark": (r.remark or "").strip()[:256] or None})
+    db.execute(MudWeightChange.__table__.delete().where(MudWeightChange.well_id == wid))
+    if rows:
+        db.bulk_insert_mappings(MudWeightChange, rows)
+    audit(db, u.username, "mud_weight_change", f"{w.name}: " + ("; ".join(
+        f"{r['ts'].astimezone(wib):%d %b %Y %H:%M} WIB {r['mw']:g} ppg" for r in rows) or "dikosongkan"))
     db.commit()
     return _mw_out(db, wid)
 

@@ -85,7 +85,7 @@ export default function DataUpload() {
               {can("upload") && <button onClick={scan} disabled={busy}>Scan folder inbox</button>}
               {busy && <span className="muted small">memproses…</span>}
             </div>
-            <p className="note">Format: Navita LAS / CSV (export_las_record_0N…), LAS rig, <b>time-based SLB / Halliburton</b> (LAS / CSV / Excel), <b>survey</b> (CSV / Excel: MD, Inc, Azi; TVD & DLS dihitung bila tidak ada), <b>tabel MW</b> (kedalaman + MW), atau .zip berisi file-file itu. Jenis data dikenali dari nama file / kolom; satuan metrik (m, kN, bar, L/min, SG) dikonversi bila satuannya tertulis. Navita = WIB; pilih <b>UTC</b> bila file streaming ditulis dalam UTC (waktu yang membawa Z / +07:00 selalu dibaca sesuai offset). Folder inbox: <span className="mono">data/inbox/&lt;nama sumur&gt;/</span> di-scan otomatis tiap 60 dtk.</p>
+            <p className="note">Format: Navita LAS / CSV (export_las_record_0N…), LAS rig, <b>time-based SLB / Halliburton</b> (LAS / CSV / Excel), <b>survey</b> (CSV / Excel: MD, Inc, Azi; TVD & DLS dihitung bila tidak ada), <b>tabel MW</b> (kedalaman + MW), atau .zip berisi file-file itu. Jenis data dikenali dari nama file / kolom; satuan metrik (m, kN, bar, L/min, SG) dikonversi bila satuannya tertulis. Navita, SLB, dan Halliburton = <b>WIB (UTC+7)</b>, jadi biarkan default. Pilih <b>UTC</b> hanya bila suatu file jelas ditulis dalam UTC (waktu yang membawa Z / +07:00 selalu dibaca sesuai offset). Folder inbox: <span className="mono">data/inbox/&lt;nama sumur&gt;/</span> di-scan otomatis tiap 60 dtk.</p>
             {res && (
               <table style={{ marginTop: 8 }}>
                 <thead><tr><th>File</th><th>Status</th><th>Rec</th><th>Basis</th><th>Baris</th><th>QC</th></tr></thead>
@@ -281,6 +281,60 @@ function MudWeightCard({ wellId, canEdit, onSaved }: { wellId: number; canEdit: 
         </div>
       )}
       {dens.length > 0 && <div className="small muted" style={{ marginTop: 6 }}>Pembanding mud density in dari data streaming (median per 500 ft): {dens.map((x) => `${ft(x.md_from)} ft ${n(x.mw)}`).join(" · ")} ppg</div>}
+      <MWChangesCard wellId={wellId} canEdit={canEdit} changes={q.data?.changes || []} onSaved={() => { q.reload(); onSaved(); }} />
+    </div>
+  );
+}
+
+type MWC = { ts: string; mw: string; remark: string };
+/** Perubahan MW berbasis waktu (jam dari DDR / mud report): displacement di shoe, lumpur baru, build-up MW. */
+function MWChangesCard({ wellId, canEdit, changes, onSaved }: { wellId: number; canEdit: boolean; changes: any[]; onSaved: () => void }) {
+  const [rows, setRows] = useState<MWC[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const cur: MWC[] = rows ?? changes.map((r: any) => ({ ts: toLocalInput(r.ts), mw: String(r.mw), remark: r.remark || "" }));
+  const editing = rows !== null;
+  const set = (i: number, k: keyof MWC, v: string) => setRows(cur.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  const save = async () => {
+    setErr(null);
+    const body = cur.filter((r) => r.ts !== "" || r.mw !== "").map((r) => ({ ts: r.ts, mw: Number(r.mw), remark: r.remark || null }));
+    if (body.some((r) => !r.ts || !isFinite(r.mw))) { setErr("Waktu dan MW wajib diisi"); return; }
+    try { await api.put(`/wells/${wellId}/mud-weight/changes`, { rows: body }); setRows(null); onSaved(); }
+    catch (e: any) { setErr(e.message); }
+  };
+  if (!editing && cur.length === 0 && !canEdit) return null;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="row">
+        <b className="small">Perubahan MW berbasis waktu</b>
+        <span className="small muted">berlaku sejak jam (WIB) sampai MW per kedalaman berubah lagi · untuk ganti lumpur di shoe / build-up MW dari DDR</span>
+        <span className="sp" />
+        {canEdit && !editing && <button onClick={() => setRows(cur.length ? cur : [{ ts: "", mw: "", remark: "" }])}>{cur.length ? "Ubah" : "+ Tambah"}</button>}
+      </div>
+      <Err e={err} />
+      {(cur.length > 0 || editing) && (
+        <table className="plan" style={{ marginTop: 6 }}>
+          <thead><tr><th>Mulai (WIB)</th><th>MW (ppg)</th><th>Sumber / catatan</th>{editing && <th />}</tr></thead>
+          <tbody>
+            {cur.map((r, i) => editing ? (
+              <tr key={i}>
+                <td><input type="datetime-local" value={r.ts} onChange={(e) => set(i, "ts", e.target.value)} /></td>
+                <td><input type="number" step="0.01" value={r.mw} onChange={(e) => set(i, "mw", e.target.value)} style={{ width: 80 }} /></td>
+                <td><input value={r.remark} onChange={(e) => set(i, "remark", e.target.value)} placeholder="mis. DDR 18 Nov: mixing 9,5 → 9,7" style={{ width: 260 }} /></td>
+                <td><button className="danger" onClick={() => setRows(cur.filter((_, j) => j !== i))}>×</button></td>
+              </tr>
+            ) : (
+              <tr key={i}><td className="mono">{wib(changes[i]?.ts, true)}</td><td className="mono">{n(Number(r.mw))}</td><td className="muted small">{r.remark}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {editing && (
+        <div className="row" style={{ marginTop: 6 }}>
+          <button onClick={() => setRows([...cur, { ts: "", mw: "", remark: "" }])}>+ Baris</button>
+          <button className="pri" onClick={save}>Simpan</button><button onClick={() => { setRows(null); setErr(null); }}>Batal</button>
+          <span className="small muted">Tidak terhapus oleh upload ulang Rec 04.</span>
+        </div>
+      )}
     </div>
   );
 }

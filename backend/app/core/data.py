@@ -8,7 +8,7 @@ import pandas as pd
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from ..models import CHANNELS, MudWeight, PPFGRow, PPFGVersion, Survey
+from ..models import CHANNELS, MudWeight, MudWeightChange, PPFGRow, PPFGVersion, Survey
 
 MAX_AGG = {"hookload_max", "torque_max"}
 
@@ -70,9 +70,20 @@ def load_depth_profile(db: Session, well_id: int, record: int = 2, step_ft: floa
 
 
 def load_mw(db: Session, well_id: int) -> pd.DataFrame:
+    """Tabel MW per kedalaman; perubahan MW berbasis waktu ikut di `df.attrs["changes"]` (kolom ts, mw, remark)."""
     rows = db.execute(select(MudWeight.md, MudWeight.tvd, MudWeight.mw, MudWeight.remark)
                       .where(MudWeight.well_id == well_id).order_by(MudWeight.md)).all()
-    return pd.DataFrame(rows, columns=["md", "tvd", "mw", "remark"])
+    df = pd.DataFrame(rows, columns=["md", "tvd", "mw", "remark"])
+    df.attrs["changes"] = load_mw_changes(db, well_id)
+    return df
+
+
+def load_mw_changes(db: Session, well_id: int) -> pd.DataFrame:
+    rows = db.execute(select(MudWeightChange.ts, MudWeightChange.mw, MudWeightChange.remark)
+                      .where(MudWeightChange.well_id == well_id).order_by(MudWeightChange.ts)).all()
+    df = pd.DataFrame(rows, columns=["ts", "mw", "remark"])
+    df["ts"] = pd.to_datetime(df["ts"], utc=True)
+    return df
 
 
 def load_survey(db: Session, well_id: int) -> pd.DataFrame:
@@ -122,3 +133,42 @@ def asof_step(x: np.ndarray | pd.Series, xp: pd.Series, fp: pd.Series) -> np.nda
     out = out.astype(float)
     out[np.isnan(xv)] = np.nan
     return out
+
+
+def apply_mw_changes(mw_depth: pd.Series, changes: pd.DataFrame | None,
+                     hole_reached: pd.Series | None = None) -> pd.Series:
+    """Gabungkan MW per kedalaman dengan perubahan MW berbasis waktu.
+
+    Perubahan berwaktu berlaku sejak `ts` sampai NILAI MW per kedalaman berubah sesudahnya (bit menembus titik Rec 04
+    berikutnya dengan MW berbeda); yang terbaru menang. Tanpa perubahan -> mw_depth apa adanya.
+
+    Dengan `hole_reached`: perubahan nilai per kedalaman hanya dihitung saat lubang BARU terbentuk (di atas puncak
+    sebelumnya). Bit yang melintasi ulang interval lama sesudah reset hole depth (GW339 16 Nov: reset ke shoe 5.357 ft,
+    Rec 04 10,2/10,3) tidak membatalkan lumpur baru dari DDR."""
+    if changes is None or not len(changes) or not isinstance(mw_depth.index, pd.DatetimeIndex) or not len(mw_depth):
+        return mw_depth
+    ch = changes.dropna(subset=["ts", "mw"]).sort_values("ts")
+    if not len(ch):
+        return mw_depth
+    idx = mw_depth.index
+    tz_idx = idx if idx.tz is not None else idx.tz_localize("UTC")
+    t = pd.Series(tz_idx.asi8, index=idx)
+    # waktu terakhir nilai MW per kedalaman berubah (perubahan nilai, bukan sekadar baris Rec 04 berikutnya)
+    v = mw_depth.to_numpy(float)
+    prev = np.r_[np.nan, v[:-1]]
+    changed = ~((v == prev) | (np.isnan(v) & np.isnan(prev)))
+    if hole_reached is not None:
+        h = hole_reached.reindex(idx).to_numpy(float)
+        peak = np.fmax.accumulate(np.where(np.isnan(h), -np.inf, h))
+        new = np.r_[True, h[1:] > peak[:-1]]
+        changed &= new
+    changed[0] = True
+    t_dep = pd.Series(np.where(changed, t.to_numpy(), np.nan), index=idx).ffill().to_numpy()
+    cts = pd.DatetimeIndex(ch["ts"]).tz_convert("UTC").asi8.astype(float)
+    k = np.searchsorted(cts, t.to_numpy(float), side="right") - 1
+    has = k >= 0
+    t_chg = np.where(has, cts[np.clip(k, 0, None)], -np.inf)
+    use = has & (t_chg >= t_dep)
+    out = v.copy()
+    out[use] = ch["mw"].to_numpy(float)[k[use]]
+    return pd.Series(out, index=idx)
